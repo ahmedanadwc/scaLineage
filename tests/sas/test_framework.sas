@@ -27,23 +27,13 @@
   %t_assert(p_name=&p_name, p_cond=&t_n = &p_expect)
 %mend t_rows;
 
-/* Record the SCAPROC output of the code that follows into p_file (same options as %util_initScaproc); end with %t_recordStop */
+/* Record the SCAPROC output of the code that follows into p_file; end with %t_recordStop */
 %macro t_recordStart(p_file=);
-  /* SCAPROC appends to an existing file, so start from nothing */
-  DATA _NULL_;
-    rc = FILENAME('trec', "&p_file");
-    IF (FEXIST('trec')) THEN rc = FDELETE('trec');
-    rc = FILENAME('trec');
-  RUN;
-  PROC SCAPROC;
-    RECORD "&p_file" ATTR OPENTIMES EXPANDMACROS;
-  RUN;
+  %lin_startRecord(p_outFile=&p_file)
 %mend t_recordStart;
 
 %macro t_recordStop;
-  PROC SCAPROC;
-    WRITE;
-  RUN;
+  %lin_stopRecord
 %mend t_recordStop;
 
 /* Count edge endpoints in a .dot file that have no node definition line (-1 = no edges at all) */

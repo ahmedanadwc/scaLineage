@@ -11,7 +11,7 @@
 
 %macro t_includeAll;
   %LOCAL i f;
-  %let f = lin_readLog lin_prepSource lin_exprDataStep lin_exprSql lin_tokenize lin_buildLineage
+  %let f = lin_startRecord lin_stopRecord lin_readLog lin_prepSource lin_exprDataStep lin_exprSql lin_tokenize lin_buildLineage
            lin_writeDag lin_processLog lin_runAll;
   %do i = 1 %to %sysfunc(countw(&f));
     %include "&g_codeRoot/%scan(&f, &i).sas";
@@ -268,5 +268,28 @@ RUN;
 %t_assert(p_name=F4 summary csv written, p_cond=%sysfunc(fileexist(&g_testRoot/allout/lineage_summary.csv)) = 1)
 %t_assert(p_name=F5 every recording has its own folder, p_cond=%sysfunc(fileexist(&g_testRoot/allout/b/b_column.dot)) = 1)
 %t_assert(p_name=F6 non .txt files are ignored, p_cond=%sysfunc(fileexist(&g_testRoot/allout/notes)) = 0)
+
+/*@@SUBMIT*/
+/* =========================================================================
+   Scenario G: lin_startRecord / lin_stopRecord
+   ========================================================================= */
+DATA _NULL_;
+  FILE "&g_testRoot/rec/g.txt";
+  PUT 'STALE CONTENT FROM AN EARLIER RUN';
+RUN;
+%lin_startRecord(p_outFile=&g_testRoot/rec/g.txt)
+DATA work.g0;
+  x = 1;
+RUN;
+DATA work.g1;
+  SET work.g0;
+  y = x + 1;
+RUN;
+%lin_stopRecord
+%t_lineage(p_file=&g_testRoot/rec/g.txt, p_prefix=tg)
+%t_rows(p_name=G1 stale recording content is replaced, p_ds=tg_collin, p_where=%str(toDs='WORK.G1' and toVar='y' and fromVar='x' and method='EXPR'))
+%lin_startRecord(p_outFile=&g_testRoot/rec/g_off.txt, p_enableFlagName=g_noSuchFlag)
+%lin_stopRecord(p_enableFlagName=g_noSuchFlag)
+%t_assert(p_name=G2 flag off: nothing is recorded, p_cond=%sysfunc(fileexist(&g_testRoot/rec/g_off.txt)) = 0)
 
 %put TEST_DONE;

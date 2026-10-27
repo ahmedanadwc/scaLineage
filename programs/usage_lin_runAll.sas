@@ -13,7 +13,7 @@
 /* ---- load the macros ------------------------------------------------------------------------ */
 %macro loadLineage(p_codeDir=);
   %LOCAL i f;
-  %let f = lin_readLog lin_prepSource lin_exprDataStep lin_exprSql lin_tokenize lin_buildLineage
+  %let f = lin_startRecord lin_stopRecord lin_readLog lin_prepSource lin_exprDataStep lin_exprSql lin_tokenize lin_buildLineage
            lin_writeDag lin_processLog lin_runAll;
   %do i = 1 %to %sysfunc(countw(&f));
     %include "&p_codeDir/%scan(&f, &i).sas";
