@@ -66,7 +66,7 @@ def main() -> int:
     passed = re.findall(r"^TEST_PASS: (.+)$", log, re.M)
     failed = re.findall(r"^TEST_FAIL: (.+)$", log, re.M)
     # F3 deliberately feeds an empty file and expects this one warning
-    expected = re.compile(r"WARNING: lin_processLog: .*holds no SCAPROC steps")
+    expected = re.compile(r"WARNING: lin_processLog: .*(holds no SCAPROC steps|no recorded source)")
     problems = [l for l in log.splitlines() if re.match(r"(ERROR|WARNING)\b", l) and not expected.search(l)]
     done = "TEST_DONE" in log
 

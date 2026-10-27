@@ -32,7 +32,7 @@
   DATA &p_prefix._exprDs (KEEP=step qid toRaw toVar pos kind expr);
     SET work._lin_dsstmts;
     LENGTH s prev $4000 toRaw $200 toVar $64 kind $8 expr $4000 inner $4000 tok $200 old new $64;
-    RETAIN qid 0 rxIf rxElse rxWhen rxAssign rxSum rxRen rxRenSt rxLit1 rxLit2;
+    RETAIN qid 0 rxIf rxElse rxWhen rxAssign rxSum rxRen rxRen1 rxDo rxRenSt rxLit1 rxLit2;
     IF (_n_ = 1) THEN
     DO;
       rxIf     = PRXPARSE('s/^\s*if\b.*?\bthen\b\s*//i');
@@ -41,6 +41,8 @@
       rxAssign = PRXPARSE('/^([A-Za-z_]\w*)\s*(?:[\[{(][^\]})]*[\]})])?\s*=\s*(.*)$/');
       rxSum    = PRXPARSE('/^([A-Za-z_]\w*)\s*\+\s*([^=].*)$/');
       rxRen    = PRXPARSE('/\brename\s*=\s*\(([^)]*)\)/i');
+      rxDo     = PRXPARSE('/^do\s+([A-Za-z_]\w*)\s*=\s*(.*)$/i');
+      rxRen1   = PRXPARSE('s/\brename\s*=\s*([A-Za-z_]\w*)\s*=\s*([A-Za-z_]\w*)/rename=($1=$2)/i');
       rxLit1   = PRXPARSE("s/'[^']*'/''/");
       rxLit2   = PRXPARSE('s/"[^"]*"/""/');
     END;
@@ -52,6 +54,7 @@
     s = text;
     CALL PRXCHANGE(rxLit1, -1, s);
     CALL PRXCHANGE(rxLit2, -1, s);
+    CALL PRXCHANGE(rxRen1, -1, s);            /* rename=old=new  ->  rename=(old=new) */
     start = 1;
     stop  = LENGTH(s);
     IF (start > stop) THEN p = 0;
@@ -105,6 +108,17 @@
           toVar = tok; kind = 'INPUT'; expr = ''; OUTPUT;
         END;
       END;
+    END;
+    ELSE IF (PRXMATCH(rxDo, s)) THEN
+    DO;
+      /* DO var = start TO stop BY step: the index variable is derived from its bounds */
+      toVar = PRXPOSN(rxDo, 1, s);
+      expr  = STRIP(PRXPOSN(rxDo, 2, s));
+      /* TO / BY are keywords, not columns; a WHILE / UNTIL condition is not a source */
+      expr  = STRIP(PRXCHANGE('s/\s+(?:while|until)\s*\(.*$//i', -1, expr));
+      expr  = PRXCHANGE('s/\s+(?:to|by)\s+/, /i', -1, expr);
+      kind  = 'EXPR';
+      OUTPUT;
     END;
     ELSE IF (PRXMATCH(rxAssign, s)) THEN
     DO;

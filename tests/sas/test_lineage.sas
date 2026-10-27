@@ -373,4 +373,53 @@ RUN;
 %t_rows(p_name=I3 output columns come from sashelp.class, p_ds=ti_collin, p_where=%str(toDs='WORK.I1' and fromDs='SASHELP.CLASS' and method='NAME'), p_expect=3)
 %t_rows(p_name=I4 nothing is unresolved, p_ds=ti_collin, p_where=%str(method='UNRESOLVED'), p_expect=0)
 
+/*@@SUBMIT*/
+/* =========================================================================
+   Scenario J: AUTO / NOSOURCE columns, rename=old=new without parentheses
+   ========================================================================= */
+%t_recordStart(p_file=&g_testRoot/rec/j.txt)
+
+DATA work.j0;
+  a = 1; b = 'x';
+RUN;
+
+PROC SUMMARY DATA=work.j0 NWAY;
+  CLASS b;
+  VAR a;
+  OUTPUT OUT=work.j1 SUM=;
+RUN;
+
+DATA work.j2;
+  DO i = 1 TO 2;
+    SET work.j0 (RENAME = a = a2);
+  END;
+RUN;
+
+/* SCAPROC does not record the source of code included from a file */
+DATA _NULL_;
+  FILE "&g_testRoot/rec/j_inc.sas";
+  PUT 'data work.j3; set work.j0; z = a + 1; run;';
+RUN;
+%include "&g_testRoot/rec/j_inc.sas";
+
+%t_recordStop
+%t_lineage(p_file=&g_testRoot/rec/j.txt, p_prefix=tj)
+
+%t_rows(p_name=J1 _FREQ_ and _TYPE_ of PROC SUMMARY are AUTO, p_ds=tj_collin, p_where=%str(toDs='WORK.J1' and method='AUTO'), p_expect=2)
+%t_rows(p_name=J2 the summed column comes from a by name, p_ds=tj_collin, p_where=%str(toDs='WORK.J1' and toVar='a' and fromVar='a' and method='NAME'))
+%t_rows(p_name=J3 rename=old=new without parentheses is RENAME, p_ds=tj_collin, p_where=%str(toDs='WORK.J2' and toVar='a2' and fromVar='a' and method='RENAME'))
+%t_rows(p_name=J4 included step: column not in any input is NOSOURCE, p_ds=tj_collin, p_where=%str(toDs='WORK.J3' and toVar='z' and method='NOSOURCE'))
+%t_rows(p_name=J5 included step: pass-through column stays NAME, p_ds=tj_collin, p_where=%str(toDs='WORK.J3' and toVar='a' and method='NAME'))
+%t_rows(p_name=J6 nothing is UNRESOLVED, p_ds=tj_collin, p_where=%str(method='UNRESOLVED'), p_expect=0)
+
+%lin_processLog(p_inFile=&g_testRoot/rec/j.txt, p_outDir=&g_testRoot/out, p_name=jj, p_json_yn=Y)
+%t_rows(p_name=J7 summary counts noSource and auto, p_ds=work.lin_summary, p_where=%str(name='jj' and noSource=1 and autoEdges=2 and unresolved=0))
+%t_assert(p_name=J8 json marks the nosource column, p_cond=%sysfunc(fileexist(&g_testRoot/out/jj.json)) = 1)
+LIBNAME tj JSON "&g_testRoot/out/jj.json";
+PROC SQL NOPRINT;
+  SELECT COUNT(*) INTO :j_nosrc TRIMMED FROM tj.nodes WHERE nosource = 1;
+QUIT;
+LIBNAME tj CLEAR;
+%t_assert(p_name=J9 json column node has nosource, p_cond=&j_nosrc = 1)
+
 %put TEST_DONE;
