@@ -43,9 +43,12 @@ def main() -> int:
         sas.submit(
             f"options dlcreatedir; libname _t '{remote}'; libname _t clear;"
             f"libname _t '{remote_code}'; libname _t clear;"
+            f"libname _t '{remote}/golden'; libname _t clear;"
         )
         for name in MACRO_FILES:
             sas.upload(str(MACROS / f"{name}.sas"), f"{remote_code}/{name}.sas", overwrite=True)
+        for p in sorted((ROOT / "tests" / "golden").glob("*")):
+            sas.upload(str(p), f"{remote}/golden/{p.name}", overwrite=True)
         for name in TEST_FILES:
             sas.upload(str(TESTS / name), f"{remote}/{name}", overwrite=True)
 

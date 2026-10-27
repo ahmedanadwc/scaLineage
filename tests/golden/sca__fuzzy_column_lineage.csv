@@ -1,0 +1,23 @@
+step,procname,method,fromKind,fromDs,fromVer,fromVar,toDs,toVer,toVar,expr
+1,DATASTEP,INPUT,INLINE,(in-stream data),0,,WORK.ONE,1,ssn,
+2,DATASTEP,INPUT,INLINE,(in-stream data),0,,WORK.TWO,1,ssn,
+3,SQL,EXPR,DS,WORK.ONE,1,ssn,WORK.MATCHES,1,MatchResults,case when (a.ssn ne b.ssn) then 'Not Exact' else 'Exact ' end
+3,SQL,EXPR,DS,WORK.TWO,1,ssn,WORK.MATCHES,1,MatchResults,case when (a.ssn ne b.ssn) then 'Not Exact' else 'Exact ' end
+3,SQL,EXPR,DS,WORK.ONE,1,ssn,WORK.MATCHES,1,ssn_one,a.ssn
+3,SQL,EXPR,DS,WORK.TWO,1,ssn,WORK.MATCHES,1,ssn_two,b.ssn
+4,DATASTEP,CONST,NONE,,0,,WORK.WANT,1,MatchResults,""""""
+4,DATASTEP,RENAME,DS,WORK.ONE,1,ssn,WORK.WANT,1,ssn1,ssn
+4,DATASTEP,RENAME,DS,WORK.TWO,1,ssn,WORK.WANT,1,ssn1,ssn
+4,DATASTEP,RENAME,DS,WORK.ONE,1,ssn,WORK.WANT,1,ssn2,ssn
+4,DATASTEP,RENAME,DS,WORK.TWO,1,ssn,WORK.WANT,1,ssn2,ssn
+5,DATASTEP,CONST,NONE,,0,,WORK.ONE,2,ssn,"put (ceil (ranuni(1) * 1e9), z9.)"
+5,DATASTEP,CONST,NONE,,0,,WORK.TWO,2,ssn,"put (ceil (ranuni(1) * 1e9), z9.)"
+6,SQL,EXPR,DS,WORK.ONE,2,ssn,WORK.MATCHES,2,MatchResults,case when (a.ssn ne b.ssn) then 'Not Exact' else 'Exact ' end
+6,SQL,EXPR,DS,WORK.TWO,2,ssn,WORK.MATCHES,2,MatchResults,case when (a.ssn ne b.ssn) then 'Not Exact' else 'Exact ' end
+6,SQL,EXPR,DS,WORK.ONE,2,ssn,WORK.MATCHES,2,ssn_one,a.ssn
+6,SQL,EXPR,DS,WORK.TWO,2,ssn,WORK.MATCHES,2,ssn_two,b.ssn
+7,DATASTEP,CONST,NONE,,0,,WORK.WANT,2,MatchResults,""""""
+7,DATASTEP,RENAME,DS,WORK.ONE,2,ssn,WORK.WANT,2,ssn1,ssn
+7,DATASTEP,RENAME,DS,WORK.TWO,2,ssn,WORK.WANT,2,ssn1,ssn
+7,DATASTEP,RENAME,DS,WORK.ONE,2,ssn,WORK.WANT,2,ssn2,ssn
+7,DATASTEP,RENAME,DS,WORK.TWO,2,ssn,WORK.WANT,2,ssn2,ssn
