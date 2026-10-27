@@ -18,7 +18,15 @@ Render the `.dot` files with Graphviz: `dot -Tsvg x_column.dot -o x_column.svg`.
 
 ## Record the programs correctly
 
-The column lineage needs the `ATTR` records, so record with the same options as `%util_initScaproc`:
+The column lineage needs the `ATTR` records. `%lin_startRecord` / `%lin_stopRecord` always record with `ATTR OPENTIMES EXPANDMACROS`:
+
+```sas
+%lin_startRecord(p_outFile=%str(~/logs/my_program.txt))
+/* ... your program ... */
+%lin_stopRecord
+```
+
+Or record by hand with the same options:
 
 ```sas
 proc scaproc;
@@ -85,6 +93,7 @@ run_lineage.py  run the whole thing against SAS ODA from Windows
 
 | Macro | Purpose |
 |---|---|
+| `%lin_startRecord`, `%lin_stopRecord` | Start / finish the SCAPROC recording with the options the lineage needs |
 | `%lin_readLog` | Parse one recording into steps, data set / file I/O, column attributes and step source |
 | `%lin_prepSource` | Split each step's source into statements |
 | `%lin_exprDataStep`, `%lin_exprSql` | Find the derivation expressions of DATA steps / PROC SQL |

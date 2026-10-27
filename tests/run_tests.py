@@ -24,6 +24,7 @@ ROOT = Path(__file__).resolve().parent.parent
 MACROS = ROOT / "code" / "macros"
 TESTS = ROOT / "tests" / "sas"
 MACRO_FILES = [
+    "lin_startRecord", "lin_stopRecord",
     "lin_readLog", "lin_prepSource", "lin_exprDataStep", "lin_exprSql", "lin_tokenize",
     "lin_buildLineage", "lin_writeDag", "lin_processLog", "lin_runAll",
 ]
