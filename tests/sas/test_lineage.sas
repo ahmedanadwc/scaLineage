@@ -353,4 +353,24 @@ LIBNAME tj CLEAR;
 %t_assert(p_name=H17 columnDag=N has no column nodes, p_cond=&j_col2 = 0)
 %t_assert(p_name=H18 steps=N: every edge endpoint is a node, p_cond=&j_dang3 = 0)
 
+/*@@SUBMIT*/
+/* =========================================================================
+   Scenario I: SASHELP (a concatenated library SAS opens under a #C... alias) is a real input
+   ========================================================================= */
+%t_recordStart(p_file=&g_testRoot/rec/i.txt)
+
+PROC SUMMARY DATA=sashelp.class NWAY;
+  CLASS sex;
+  VAR age height;
+  OUTPUT OUT=work.i1 (DROP=_:) SUM=;
+RUN;
+
+%t_recordStop
+%t_lineage(p_file=&g_testRoot/rec/i.txt, p_prefix=ti)
+
+%t_rows(p_name=I1 sashelp.class is an input of the step, p_ds=ti_dsio, p_where=%str(ds='SASHELP.CLASS' and role='INPUT'))
+%t_rows(p_name=I2 no alias library is left, p_ds=ti_dsio, p_where=%str(substr(ds, 1, 1)='#'), p_expect=0)
+%t_rows(p_name=I3 output columns come from sashelp.class, p_ds=ti_collin, p_where=%str(toDs='WORK.I1' and fromDs='SASHELP.CLASS' and method='NAME'), p_expect=3)
+%t_rows(p_name=I4 nothing is unresolved, p_ds=ti_collin, p_where=%str(method='UNRESOLVED'), p_expect=0)
+
 %put TEST_DONE;
