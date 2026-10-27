@@ -176,7 +176,7 @@
     DELETE _lin_dslin _lin_sum
            &p_prefix._steps &p_prefix._dsio &p_prefix._fileio &p_prefix._attrs &p_prefix._src &p_prefix._stmts
            &p_prefix._exprDs &p_prefix._exprSql &p_prefix._alias &p_prefix._eexpr &p_prefix._ref
-           &p_prefix._collin &p_prefix._dsver;
+           &p_prefix._collin &p_prefix._dsver &p_prefix._cmem;
   RUN; QUIT;
 
 %mend lin_processLog;

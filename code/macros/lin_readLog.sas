@@ -11,8 +11,9 @@
     &p_prefix._attrs   step, ord (record order), role (INPUT|OUTPUT), ds, var, type, length, label, format, informat
     &p_prefix._src     step, lineno, text   (the submitted source of the step, comments/blank lines removed)
 
-  Utility files (WORK.'SASTMP-...'.UTILITY, written by PROC SORT) and the internal aliases SAS
-  opens at start-up (libref #C00003 etc., a copy of SASHELP) are ignored.
+  Utility files (WORK.'SASTMP-...'.UTILITY, written by PROC SORT) are ignored. SAS opens concatenated
+  libraries such as SASHELP under an internal alias (libref #C00003, announced by a CONCATMEM record);
+  the alias is replaced by the real library (SASHELP.PRDSALE). An alias without a CONCATMEM record is dropped.
 
   Example usage:
 
@@ -46,13 +47,14 @@
        &p_prefix._dsio  (KEEP=step role ds memtype)
        &p_prefix._fileio(KEEP=step role path)
        &p_prefix._attrs (KEEP=step ord role ds var type length label format informat)
-       &p_prefix._src   (KEEP=step lineno text);
+       &p_prefix._src   (KEEP=step lineno text)
+       &p_prefix._cmem  (KEEP=alias rlib);
 
     INFILE "&p_inFile" LRECL=32767 TRUNCOVER END=eof;
     INPUT;
 
     LENGTH line $4000 rec $4000 kw $32 procname $32 role $8 memtype $8
-           ds $80 lib $32 mem $64 path $1000 var $64 type $9 label $256 format informat $32
+           ds $80 lib $32 alias rlib $32 mem $64 path $1000 var $64 type $9 label $256 format informat $32
            text $2000 startTxt $40;
     RETAIN step 0 inSrc 0 lineno 0 procname '' elapsed . startDt . rxAttr;
 
@@ -94,7 +96,13 @@
           mem  = UPCASE(COMPRESS(SCAN(ds, 2, '.'), "'"));
           memtype = UPCASE(SCAN(ds, 3, '.'));
           ds   = CATX('.', lib, mem);
-          IF (memtype NE 'UTILITY' AND SUBSTR(lib, 1, 1) NE '#') THEN OUTPUT &p_prefix._dsio;
+          IF (memtype NE 'UTILITY') THEN OUTPUT &p_prefix._dsio;
+        END;
+        WHEN ('CONCATMEM')
+        DO;
+          alias = UPCASE(SCAN(rec, 2, ' '));
+          rlib  = UPCASE(SCAN(rec, 3, ' '));
+          IF (SUBSTR(alias, 1, 1) = '#' AND NOT MISSING(rlib)) THEN OUTPUT &p_prefix._cmem;
         END;
         WHEN ('FILE')
         DO;
@@ -119,7 +127,7 @@
             mem = UPCASE(COMPRESS(SCAN(ds, 2, '.'), "'"));
             memtype = UPCASE(SCAN(ds, 3, '.'));
             ds  = CATX('.', lib, mem);
-            IF (memtype NE 'UTILITY' AND SUBSTR(lib, 1, 1) NE '#') THEN OUTPUT &p_prefix._attrs;
+            IF (memtype NE 'UTILITY') THEN OUTPUT &p_prefix._attrs;
           END;
         END;
         OTHERWISE;
@@ -139,6 +147,32 @@
 
     IF (eof AND step > 0) THEN OUTPUT &p_prefix._steps;
   RUN;
+
+  /* replace the internal library aliases by the real library; the CONCATMEM record can come after the
+     DATASET / ATTR records that use the alias, hence the second pass */
+  %LOCAL l_t l_tbl;
+  %do l_t = 1 %to 2;
+    %let l_tbl = %scan(&p_prefix._dsio &p_prefix._attrs, &l_t, %str( ));
+    DATA &l_tbl;
+      LENGTH alias rlib $32;
+      IF (_n_ = 1) THEN
+      DO;
+        DECLARE HASH h (DATASET: "&p_prefix._cmem");
+        h.DEFINEKEY('alias');
+        h.DEFINEDATA('rlib');
+        h.DEFINEDONE();
+        CALL MISSING(alias, rlib);
+      END;
+      SET &l_tbl;
+      IF (SUBSTR(ds, 1, 1) = '#') THEN
+      DO;
+        alias = SCAN(ds, 1, '.');
+        IF (h.FIND() = 0) THEN ds = CATX('.', rlib, SCAN(ds, 2, '.'));
+        ELSE DELETE;
+      END;
+      DROP alias rlib;
+    RUN;
+  %end;
 
   /* step duration = gap to the next TASKSTARTTIME (same approach as util_parseScaproc) */
   DATA &p_prefix._steps;
