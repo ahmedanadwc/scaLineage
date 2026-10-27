@@ -5,7 +5,7 @@ results back to a local folder.
 
 Usage:
   python run_lineage.py --logs <folder with *.txt> --out <local output folder> [--attrs] [--no-steps]
-                        [--no-column-dag] [--rank-dir LR]
+                        [--no-column-dag] [--json] [--rank-dir LR]
 
 For every <name>.txt it writes <out>/<name>/<name>_dataset.dot, <name>_column.dot and three *.csv
 files; <out>/lineage_summary.csv lists one row per log. If Graphviz ('dot') is on the PATH the
@@ -31,7 +31,7 @@ ROOT = Path(__file__).resolve().parent
 MACROS = ROOT / "code" / "macros"
 ORDER = [
     "lin_readLog", "lin_prepSource", "lin_exprDataStep", "lin_exprSql", "lin_tokenize",
-    "lin_buildLineage", "lin_writeDag", "lin_processLog", "lin_runAll",
+    "lin_buildLineage", "lin_writeDag", "lin_writeJson", "lin_processLog", "lin_runAll",
 ]
 
 
@@ -43,6 +43,7 @@ def main() -> int:
     ap.add_argument("--attrs", action="store_true", help="list the columns inside the data set nodes")
     ap.add_argument("--no-steps", action="store_true", help="leave the processing steps out of the dataset DAG")
     ap.add_argument("--no-column-dag", action="store_true", help="skip the column level DAG")
+    ap.add_argument("--json", action="store_true", help="also write <name>.json (nodes / edges of both levels)")
     ap.add_argument("--rank-dir", default="LR", choices=["TB", "BT", "LR", "RL"])
     args = ap.parse_args()
 
@@ -85,7 +86,7 @@ def main() -> int:
             includes
             + f"%lin_runAll(p_logDir={remote_logs}, p_outDir={remote_out}, p_ext={args.ext},"
             f" p_attrs_yn={flag(args.attrs)}, p_includeSteps_yn={flag(not args.no_steps)},"
-            f" p_columnDag_yn={flag(not args.no_column_dag)}, p_rankDir={args.rank_dir})\n"
+            f" p_columnDag_yn={flag(not args.no_column_dag)}, p_rankDir={args.rank_dir}, p_json_yn={flag(args.json)})\n"
         )["LOG"]
         problems = [l for l in log.splitlines() if re.match(r"(ERROR|WARNING)\b", l)]
         for l in dict.fromkeys(problems):

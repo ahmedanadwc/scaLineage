@@ -11,12 +11,25 @@ Give it a folder of `*.txt` recordings. For each one it writes, into a sub-folde
 | `<name>_column_lineage.csv` | One row per column edge (step, method, from data set / version / column, to data set / version / column, expression) |
 | `<name>_dataset_lineage.csv` | One row per step input / output (data sets with version, and files) |
 | `<name>_steps.csv` | One row per step (proc, elapsed, duration) |
+| `<name>.json` | Optional (`p_json_yn=Y` / `--json`): node / edge graph with both levels, see below |
 
 `lineage_summary.csv` (one row per recording) is written next to the sub-folders.
 
 Render the `.dot` files with Graphviz: `dot -Tsvg x_column.dot -o x_column.svg`.
 
 The DOT output is plain and portable: no global `node [...]` defaults in the data set DAG, every node carries its own shape and colour, and there is one `"a" -> "b"` statement per edge (no `{a b} -> {c}` set syntax). It is the same form as the SIMPLE theme of the older dotMySASProgram tool, so there is no theme option.
+
+## JSON graph
+
+`%lin_processLog(..., p_json_yn=Y)` (and `%lin_runAll(..., p_json_yn=Y)`) also writes `<name>.json`: one graph holding both levels, so a consumer filters on `"level"`.
+
+| | Fields |
+|---|---|
+| node | `id`, `label`, `type` (`dataset`, `file`, `step`, `column`), `level` (`dataset` or `column`); data sets also `columns` (with `p_attrs_yn=Y`); steps `step`, `seconds`; columns `dataset` (id of the data set node) and `unresolved: true` |
+| edge, level `dataset` | `source`, `target`, `type` (`input`, `output`, or `flow` without step nodes), `step`: same `source` / `target` / `type` shape as the older dotMySASProgram JSON |
+| edge, level `column` | `source`, `target`, `type: "column"`, `method` (`EXPR`, `RENAME`, `NAME`, `FILE`, `INPUT`, `CONST`), `step`, `expr` |
+
+Node ids are the ids used in the DOT files.
 
 ## Record the programs correctly
 
@@ -58,7 +71,7 @@ python run_lineage.py --logs "C:\path\to\logs" --out "D:\Projects\SAS\scaLineage
 ```
 
 It uploads the macros and the logs, runs `%lin_runAll`, and downloads the results. If Graphviz (`dot`) is on the PATH the `.dot` files are also rendered to `.svg`.
-Options: `--attrs` (list columns inside the data set nodes), `--no-steps`, `--no-column-dag`, `--rank-dir TB|BT|LR|RL`, `--ext txt`.
+Options: `--attrs` (list columns inside the data set nodes), `--no-steps`, `--no-column-dag`, `--json`, `--rank-dir TB|BT|LR|RL`, `--ext txt`.
 Empty files are skipped.
 
 ## How the lineage is derived
@@ -101,6 +114,7 @@ run_lineage.py  run the whole thing against SAS ODA from Windows
 | `%lin_exprDataStep`, `%lin_exprSql` | Find the derivation expressions of DATA steps / PROC SQL |
 | `%lin_tokenize` | Find the column references inside each expression |
 | `%lin_buildLineage` | Resolve references against the recorded columns, add versions |
+| `%lin_writeJson` | Write the node / edge JSON graph of both levels |
 | `%lin_writeDag` | Write the dataset and column DOT files |
 | `%lin_processLog` | The chain above plus the CSV files, for one recording |
 | `%lin_runAll` | `%lin_processLog` for every file in a folder |

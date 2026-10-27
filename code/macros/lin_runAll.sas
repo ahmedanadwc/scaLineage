@@ -21,12 +21,13 @@
   @param [in] p_includeSteps_yn= Y|N draw the processing steps in the dataset DAG. Default:Y.
   @param [in] p_columnDag_yn= Y|N also write the column DAG. Default:Y.
   @param [in] p_rankDir= TB|BT|LR|RL layout direction. Default:LR.
+  @param [in] p_json_yn= Y|N also write a .json graph per recording. Default:N.
 
   @version 9.4
   @author Ahmed Al-Attar
 **/
 %macro lin_runAll(p_logDir=, p_outDir=, p_ext=txt, p_attrs_yn=N, p_includeSteps_yn=Y
-, p_columnDag_yn=Y, p_rankDir=LR);
+, p_columnDag_yn=Y, p_rankDir=LR, p_json_yn=N);
 
   %GLOBAL g_linRC;
   %LOCAL l_n;
@@ -99,7 +100,7 @@
     PUT '%lin_processLog(p_inFile=%nrstr(' path +(-1) ')';
     PUT ', p_outDir=%nrstr(' outSub +(-1) ')';
     PUT ", p_attrs_yn=&p_attrs_yn, p_includeSteps_yn=&p_includeSteps_yn";
-    PUT ", p_columnDag_yn=&p_columnDag_yn, p_rankDir=&p_rankDir)";
+    PUT ", p_columnDag_yn=&p_columnDag_yn, p_rankDir=&p_rankDir, p_json_yn=&p_json_yn)";
   RUN;
   %include _linrun;
   FILENAME _linrun CLEAR;
