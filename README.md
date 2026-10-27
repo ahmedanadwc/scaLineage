@@ -64,11 +64,13 @@ A recording without `ATTR` records still gets a data set level DAG, but a warnin
 %lin_processLog(p_inFile=~/scaLineage/logs/x.txt, p_outDir=~/scaLineage/output)   /* one file */
 ```
 
-**From Windows, against SAS ODA via SASPy** (needs `connect_saspy.py`, see `SASPY_HELPERS`):
+**From Windows, against SAS ODA via SASPy.** It needs a Python with `saspy` installed and `connect_saspy.py` (folder in `SASPY_HELPERS`, default `D:\Projects\Python\saspy_helpers`). The conda environment `sas_python2` has both:
 
 ```
-python run_lineage.py --logs "C:\path\to\logs" --out "D:\Projects\SAS\scaLineage\output" --attrs
+D:\Projects\Python\envs\sas_python2\python.exe run_lineage.py --logs "C:\path\to\logs" --out "D:\Projects\SAS\scaLineage\output" --attrs
 ```
+
+The macros use only SAS 9.4 syntax and take every path as a parameter (Unix or Windows style), so they also run on a 9.4 install; the test suite is run on SAS ODA only.
 
 It uploads the macros and the logs, runs `%lin_runAll`, and downloads the results. If Graphviz (`dot`) is on the PATH the `.dot` files are also rendered to `.svg`.
 Options: `--attrs` (list columns inside the data set nodes), `--no-steps`, `--no-column-dag`, `--json`, `--rank-dir TB|BT|LR|RL`, `--ext txt`.
@@ -102,10 +104,13 @@ A data set that is written more than once is shown once per **version** (`WORK.O
 ## Layout
 
 ```
-code/macros/    lin_readLog -> lin_prepSource -> lin_exprDataStep + lin_exprSql -> lin_tokenize
-                -> lin_buildLineage -> lin_writeDag, driven by lin_processLog (one log) and lin_runAll (a folder)
+code/macros/    lin_startRecord / lin_stopRecord (record), then
+                lin_readLog -> lin_prepSource -> lin_exprDataStep + lin_exprSql -> lin_tokenize
+                -> lin_buildLineage -> lin_writeDag + lin_writeJson, driven by lin_processLog (one log)
+                and lin_runAll (a folder)
 programs/       usage_lin_runAll.sas
 tests/          run_tests.py (runs tests/sas/test_lineage.sas on SAS and reports PASS/FAIL)
+tests/golden/   two real recordings and their expected *_column_lineage.csv
 run_lineage.py  run the whole thing against SAS ODA from Windows
 ```
 
@@ -124,4 +129,6 @@ run_lineage.py  run the whole thing against SAS ODA from Windows
 
 ## Tests
 
-`python tests/run_tests.py` records real SCAPROC output of small programs on SAS (DATA step, PROC SQL, in-place sort, files), checks the lineage tables, the DOT output (every edge endpoint has a node definition) and the whole-folder run.
+`python tests/run_tests.py` (same Python as above) records real SCAPROC output of small programs on SAS (DATA step, PROC SQL, in-place sort, files, SASHELP, included code), checks the lineage tables, the DOT and JSON output (every edge endpoint has a node), the whole-folder run, and two golden recordings: the column lineage of `tests/golden/*.txt` must equal the committed `*_column_lineage.csv`. After a deliberate change of the lineage rules, regenerate those CSVs with `run_lineage.py` and review the diff.
+
+Environment variables: `SASPY_HELPERS`, `SAS_TEST_DIR` (remote scratch folder), `LIN_TEST_LOG` (write the full SAS log there).
