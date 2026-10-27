@@ -16,6 +16,8 @@ Give it a folder of `*.txt` recordings. For each one it writes, into a sub-folde
 
 Render the `.dot` files with Graphviz: `dot -Tsvg x_column.dot -o x_column.svg`.
 
+The DOT output is plain and portable: no global `node [...]` defaults in the data set DAG, every node carries its own shape and colour, and there is one `"a" -> "b"` statement per edge (no `{a b} -> {c}` set syntax). It is the same form as the SIMPLE theme of the older dotMySASProgram tool, so there is no theme option.
+
 ## Record the programs correctly
 
 The column lineage needs the `ATTR` records. `%lin_startRecord` / `%lin_stopRecord` always record with `ATTR OPENTIMES EXPANDMACROS`:
