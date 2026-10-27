@@ -6,7 +6,8 @@
     nodes   {"id", "label", "type", "level", ...}
               type "dataset" (level dataset; "columns": [{name, type}] when p_attrs_yn=Y),
                    "file", "step" (with "step" number), "column" (level column; "dataset" = id of its
-                   data set node, "unresolved": true when no source could be determined)
+                   data set node, "unresolved": true when the step has source that does not say where the column
+                   came from, "nosource": true when the step has no recorded source)
     edges   {"source", "target", "type", "level", ...}
               level dataset: type "input" (to a step), "output" (from a step) or "flow" (no step nodes)
               level column:  type "column", "method" (EXPR|RENAME|NAME|FILE|INPUT|CONST), "step", "expr"
@@ -184,6 +185,8 @@
       SELECT c.ds, c.ver, c.var
            , EXISTS (SELECT 1 FROM &p_prefix._collin x
                      WHERE x.method = 'UNRESOLVED' AND x.toDs = c.ds AND x.toVer = c.ver AND x.toVar = c.var) AS unres
+           , EXISTS (SELECT 1 FROM &p_prefix._collin x
+                     WHERE x.method = 'NOSOURCE' AND x.toDs = c.ds AND x.toVer = c.ver AND x.toVar = c.var) AS nosrc
       FROM work._lj_cn c
       ORDER BY c.ds, c.ver, c.var;
 
@@ -197,6 +200,7 @@
       line = CAT('{"id": "', %lin_jq(CATS(ds, '#', ver, '.', var)), '", "label": "', %lin_jq(STRIP(var)), '", "type": "column", "level": "column", "dataset": "'
                , %lin_jq(CATS(ds, '#', ver)), '"');
       IF (unres) THEN line = CAT(STRIP(line), ', "unresolved": true');
+      IF (nosrc) THEN line = CAT(STRIP(line), ', "nosource": true');
       line = CAT(STRIP(line), '}');
     RUN;
     DATA work._lj_n5 (KEEP=sec obj seq st line);

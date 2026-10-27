@@ -9,7 +9,8 @@
                            one arrow per lineage edge (colour = how the column was derived)
 
   Colours in the column DAG:  grey = same name (NAME), blue = expression (EXPR), purple = rename,
-  green = read from a file, red outline = no source could be determined.
+  green = read from a file, red outline = unresolved (the step has source, but it does not say where the column came
+  from), orange outline = the step has no recorded source (NOSOURCE).
   A data set written more than once appears once per version, e.g. WORK.ONE (v2).
 
   Needs the tables of %lin_readLog and %lin_buildLineage.
@@ -249,7 +250,10 @@
       SELECT c.ds, c.ver, c.var, COALESCE(n.label, CAT(STRIP(c.ds), ' (v', STRIP(PUT(c.ver, best12.)), ')')) AS label LENGTH=200
            , CASE WHEN EXISTS (SELECT 1 FROM &p_prefix._collin x
                                WHERE x.method = 'UNRESOLVED' AND x.toDs = c.ds AND x.toVer = c.ver AND x.toVar = c.var)
-                  THEN 'red' ELSE 'gray40' END AS colr LENGTH=10
+                  THEN 'red'
+                  WHEN EXISTS (SELECT 1 FROM &p_prefix._collin x
+                               WHERE x.method = 'NOSOURCE' AND x.toDs = c.ds AND x.toVer = c.ver AND x.toVar = c.var)
+                  THEN 'darkorange' ELSE 'gray40' END AS colr LENGTH=10
            , o.ord
       FROM work._lin_cn c
       LEFT JOIN work._lin_dsn n ON n.ds = c.ds AND n.ver = c.ver
