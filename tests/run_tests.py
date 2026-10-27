@@ -26,7 +26,7 @@ TESTS = ROOT / "tests" / "sas"
 MACRO_FILES = [
     "lin_startRecord", "lin_stopRecord",
     "lin_readLog", "lin_prepSource", "lin_exprDataStep", "lin_exprSql", "lin_tokenize",
-    "lin_buildLineage", "lin_writeDag", "lin_processLog", "lin_runAll",
+    "lin_buildLineage", "lin_writeDag", "lin_writeJson", "lin_processLog", "lin_runAll",
 ]
 TEST_FILES = ["test_framework.sas", "test_lineage.sas"]
 

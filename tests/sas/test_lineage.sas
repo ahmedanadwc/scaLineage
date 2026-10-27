@@ -12,7 +12,7 @@
 %macro t_includeAll;
   %LOCAL i f;
   %let f = lin_startRecord lin_stopRecord lin_readLog lin_prepSource lin_exprDataStep lin_exprSql lin_tokenize lin_buildLineage
-           lin_writeDag lin_processLog lin_runAll;
+           lin_writeDag lin_writeJson lin_processLog lin_runAll;
   %do i = 1 %to %sysfunc(countw(&f));
     %include "&g_codeRoot/%scan(&f, &i).sas";
   %end;
@@ -291,5 +291,66 @@ RUN;
 %lin_startRecord(p_outFile=&g_testRoot/rec/g_off.txt, p_enableFlagName=g_noSuchFlag)
 %lin_stopRecord(p_enableFlagName=g_noSuchFlag)
 %t_assert(p_name=G2 flag off: nothing is recorded, p_cond=%sysfunc(fileexist(&g_testRoot/rec/g_off.txt)) = 0)
+
+/*@@SUBMIT*/
+/* =========================================================================
+   Scenario H: JSON graph (both levels)
+   ========================================================================= */
+%lin_processLog(p_inFile=&g_testRoot/rec/a.txt, p_outDir=&g_testRoot/out, p_name=ja, p_attrs_yn=Y, p_json_yn=Y)
+%lin_processLog(p_inFile=&g_testRoot/rec/d.txt, p_outDir=&g_testRoot/out, p_name=jd, p_json_yn=Y)
+%lin_processLog(p_inFile=&g_testRoot/rec/a.txt, p_outDir=&g_testRoot/out, p_name=jn, p_includeSteps_yn=N, p_columnDag_yn=N, p_json_yn=Y)
+%lin_processLog(p_inFile=&g_testRoot/rec/b.txt, p_outDir=&g_testRoot/out, p_name=jx)
+%t_assert(p_name=H1 json file written, p_cond=%sysfunc(fileexist(&g_testRoot/out/ja.json)) = 1)
+%t_assert(p_name=H2 no json unless asked, p_cond=%sysfunc(fileexist(&g_testRoot/out/jx.json)) = 0)
+
+LIBNAME tj JSON "&g_testRoot/out/ja.json";   /* the JSON engine fails on invalid JSON */
+PROC SQL NOPRINT;
+  SELECT COUNT(*) INTO :j_nodes  TRIMMED FROM tj.nodes;
+  SELECT COUNT(*) INTO :j_ds     TRIMMED FROM tj.nodes WHERE type = 'dataset' AND level = 'dataset';
+  SELECT COUNT(*) INTO :j_steps  TRIMMED FROM tj.nodes WHERE type = 'step';
+  SELECT COUNT(*) INTO :j_colnd  TRIMMED FROM tj.nodes WHERE type = 'column' AND level = 'column';
+  SELECT COUNT(*) INTO :j_dsedge TRIMMED FROM tj.edges WHERE level = 'dataset' AND type IN ('input', 'output');
+  SELECT COUNT(*) INTO :j_coled  TRIMMED FROM tj.edges WHERE level = 'column' AND type = 'column';
+  SELECT COUNT(*) INTO :j_expr   TRIMMED FROM tj.edges WHERE method = 'EXPR' AND expr IS NOT NULL;
+  SELECT COUNT(*) INTO :j_dangle TRIMMED FROM tj.edges
+    WHERE source NOT IN (SELECT id FROM tj.nodes) OR target NOT IN (SELECT id FROM tj.nodes);
+  SELECT COUNT(*) INTO :j_nocol  TRIMMED FROM tj.nodes WHERE type = 'column' AND dataset NOT IN (SELECT id FROM tj.nodes);
+  SELECT COUNT(*) INTO :j_attrs  TRIMMED FROM tj.nodes_columns;
+QUIT;
+LIBNAME tj CLEAR;
+%t_assert(p_name=H3 json has nodes, p_cond=&j_nodes > 0)
+%t_assert(p_name=H4 json has data set nodes, p_cond=&j_ds ge 2)
+%t_assert(p_name=H5 json has step nodes, p_cond=&j_steps ge 2)
+%t_assert(p_name=H6 json has column nodes, p_cond=&j_colnd ge 5)
+%t_assert(p_name=H7 json has data set edges, p_cond=&j_dsedge ge 4)
+%t_assert(p_name=H8 json has column edges, p_cond=&j_coled ge 5)
+%t_assert(p_name=H9 expression edges carry the expression, p_cond=&j_expr ge 1)
+%t_assert(p_name=H10 every edge endpoint is a node, p_cond=&j_dangle = 0)
+%t_assert(p_name=H11 every column node belongs to a data set node, p_cond=&j_nocol = 0)
+%t_assert(p_name=H12 attrs=Y lists the columns in the data set nodes, p_cond=&j_attrs ge 5)
+
+LIBNAME tj JSON "&g_testRoot/out/jd.json";
+PROC SQL NOPRINT;
+  SELECT COUNT(*) INTO :j_file   TRIMMED FROM tj.nodes WHERE type = 'file';
+  SELECT COUNT(*) INTO :j_dang2  TRIMMED FROM tj.edges
+    WHERE source NOT IN (SELECT id FROM tj.nodes) OR target NOT IN (SELECT id FROM tj.nodes);
+QUIT;
+LIBNAME tj CLEAR;
+%t_assert(p_name=H13 file recording has file nodes, p_cond=&j_file ge 1)
+%t_assert(p_name=H14 file recording: every edge endpoint is a node, p_cond=&j_dang2 = 0)
+
+LIBNAME tj JSON "&g_testRoot/out/jn.json";
+PROC SQL NOPRINT;
+  SELECT COUNT(*) INTO :j_flow   TRIMMED FROM tj.edges WHERE type = 'flow';
+  SELECT COUNT(*) INTO :j_stp2   TRIMMED FROM tj.nodes WHERE type = 'step';
+  SELECT COUNT(*) INTO :j_col2   TRIMMED FROM tj.nodes WHERE type = 'column';
+  SELECT COUNT(*) INTO :j_dang3  TRIMMED FROM tj.edges
+    WHERE source NOT IN (SELECT id FROM tj.nodes) OR target NOT IN (SELECT id FROM tj.nodes);
+QUIT;
+LIBNAME tj CLEAR;
+%t_assert(p_name=H15 steps=N links inputs to outputs with flow edges, p_cond=&j_flow ge 1)
+%t_assert(p_name=H16 steps=N has no step nodes, p_cond=&j_stp2 = 0)
+%t_assert(p_name=H17 columnDag=N has no column nodes, p_cond=&j_col2 = 0)
+%t_assert(p_name=H18 steps=N: every edge endpoint is a node, p_cond=&j_dang3 = 0)
 
 %put TEST_DONE;

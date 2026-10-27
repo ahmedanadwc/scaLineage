@@ -13,6 +13,7 @@
     <p_name>_column_lineage.csv     one row per column lineage edge (see %lin_buildLineage)
     <p_name>_dataset_lineage.csv    one row per step input / output (data sets and files, with version)
     <p_name>_steps.csv              one row per step (proc, elapsed, duration)
+    <p_name>.json                   node / edge graph of both levels (only when p_json_yn=Y)
 
   A one-row summary is appended to WORK.LIN_SUMMARY (created on first use).
   The global macro variable G_LINRC is 0 when the log was processed, otherwise
@@ -33,13 +34,14 @@
   @param [in] p_includeSteps_yn= Y|N draw the processing steps in the dataset DAG. Default:Y.
   @param [in] p_columnDag_yn= Y|N also write the column DAG. Default:Y.
   @param [in] p_rankDir= TB|BT|LR|RL layout direction. Default:LR.
+  @param [in] p_json_yn= Y|N also write <p_name>.json (nodes / edges of both levels, see %lin_writeJson). Default:N.
   @param [in] p_prefix= Prefix of the WORK tables used while processing. Default:lin.
 
   @version 9.4
   @author Ahmed Al-Attar
 **/
 %macro lin_processLog(p_inFile=, p_outDir=, p_name=, p_attrs_yn=N, p_includeSteps_yn=Y
-, p_columnDag_yn=Y, p_rankDir=LR, p_prefix=lin);
+, p_columnDag_yn=Y, p_rankDir=LR, p_json_yn=N, p_prefix=lin);
 
   %GLOBAL g_linRC;
   %LOCAL l_name l_nsteps l_nattrs l_status l_file l_dot;
@@ -104,6 +106,12 @@
   %lin_buildLineage(p_prefix=&p_prefix)
   %lin_writeDag(p_prefix=&p_prefix, p_outDir=&p_outDir, p_name=&l_name, p_attrs_yn=&p_attrs_yn
               , p_includeSteps_yn=&p_includeSteps_yn, p_columnDag_yn=&p_columnDag_yn, p_rankDir=&p_rankDir)
+
+  %if (%upcase(&p_json_yn) = Y) %then
+  %do;
+    %lin_writeJson(p_prefix=&p_prefix, p_outFile=&p_outDir/&l_name..json, p_name=&l_name, p_attrs_yn=&p_attrs_yn
+                 , p_includeSteps_yn=&p_includeSteps_yn, p_columnGraph_yn=&p_columnDag_yn)
+  %end;
 
   /* ---- the extracted lineage as CSV ---- */
   PROC SQL;
