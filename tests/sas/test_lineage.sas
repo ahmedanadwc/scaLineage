@@ -422,4 +422,33 @@ QUIT;
 LIBNAME tj CLEAR;
 %t_assert(p_name=J9 json column node has nosource, p_cond=&j_nosrc = 1)
 
+/*@@SUBMIT*/
+/* =========================================================================
+   Scenario K: golden recordings. The column lineage of two real recordings (tests/golden) must equal the
+   committed *_column_lineage.csv. A deliberate change of the lineage rules means regenerating those CSVs.
+   ========================================================================= */
+%macro t_golden(p_name=);
+  %lin_processLog(p_inFile=&g_testRoot/golden/&p_name..txt, p_outDir=&g_testRoot/out, p_name=g_&p_name)
+  DATA work.g_exp;
+    INFILE "&g_testRoot/golden/&p_name._column_lineage.csv" LRECL=32767 TRUNCOVER FIRSTOBS=2;
+    INPUT line $char2000.;
+  RUN;
+  DATA work.g_new;
+    INFILE "&g_testRoot/out/g_&p_name._column_lineage.csv" LRECL=32767 TRUNCOVER FIRSTOBS=2;
+    INPUT line $char2000.;
+  RUN;
+  PROC SQL NOPRINT;
+    SELECT COUNT(*) INTO :g_n TRIMMED FROM work.g_exp;
+    SELECT COUNT(*) INTO :g_missing TRIMMED FROM (SELECT line FROM work.g_exp EXCEPT SELECT line FROM work.g_new);
+    SELECT COUNT(*) INTO :g_extra   TRIMMED FROM (SELECT line FROM work.g_new EXCEPT SELECT line FROM work.g_exp);
+    SELECT COUNT(*) INTO :g_nnew    TRIMMED FROM work.g_new;
+  QUIT;
+  %t_assert(p_name=K &p_name has golden edges, p_cond=&g_n > 0)
+  %t_assert(p_name=K &p_name no golden edge is missing, p_cond=&g_missing = 0)
+  %t_assert(p_name=K &p_name no extra edge, p_cond=&g_extra = 0)
+  %t_assert(p_name=K &p_name same number of edges, p_cond=&g_nnew = &g_n)
+%mend t_golden;
+%t_golden(p_name=sca__fuzzy)
+%t_golden(p_name=sca__analyze)
+
 %put TEST_DONE;
