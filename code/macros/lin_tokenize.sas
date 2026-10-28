@@ -10,7 +10,7 @@
   name used inside it. Quoted strings, function calls
   (name followed by a bracket), formats (name followed by a dot), macro variables, numbers and
   language keywords are not references. 'alias.column' keeps the alias in QUAL, and a column that
-  follows the SQL keyword CALCULATED has CALC=1. RENAME rows give one reference to the old name.
+  follows the SQL keyword CALCULATED has CALC=1. RENAME rows give one reference to the old name; its QUAL is the data set of the rename= option.
 
   @param [in] p_prefix= Prefix of the WORK tables. Default:lin.
 
@@ -21,6 +21,7 @@
 
   DATA &p_prefix._eexpr (KEEP=eid step qid toRaw toVar pos kind expr)
        &p_prefix._ref   (KEEP=eid qual ident calc);
+    LENGTH fromRaw $200;
     SET &p_prefix._exprDs &p_prefix._exprSql;
     LENGTH e $4000 qual ident $64 nc pc $1 kw $600;
     RETAIN rxLit1 rxLit2 rxTok kw;
@@ -41,6 +42,7 @@
     IF (kind = 'RENAME') THEN
     DO;
       ident = expr;
+      qual  = fromRaw;                         /* data set carrying the rename= option, if known */
       OUTPUT &p_prefix._ref;
       RETURN;
     END;

@@ -3,11 +3,12 @@
   @brief Extracts column derivations from the recorded source of DATA steps.
   @details Looks at the statements of every DATASTEP step (see %lin_prepSource) and creates
 
-    &p_prefix._exprDs   step, qid(=0), toRaw(blank = every output), toVar, pos, kind, expr
+    &p_prefix._exprDs   step, qid(=0), toRaw(blank = every output), fromRaw, toVar, pos, kind, expr
 
   kind:
     EXPR    assignment (x = expr;) or sum statement (x + expr;); expr holds the right hand side
-    RENAME  rename=(old=new) option or RENAME statement; toVar = new name, expr = old name
+    RENAME  rename=(old=new) option or RENAME statement; toVar = new name, expr = old name;
+            fromRaw = data set the rename= option is attached to (blank for a RENAME statement)
     INPUT   variable read by an INPUT statement (comes from the INFILE / in-stream data)
 
   Leading IF ... THEN / ELSE / WHEN / OTHERWISE clauses are removed so the assignment behind them
@@ -29,9 +30,9 @@
     ORDER BY a.step, a.stmtno;
   QUIT;
 
-  DATA &p_prefix._exprDs (KEEP=step qid toRaw toVar pos kind expr);
+  DATA &p_prefix._exprDs (KEEP=step qid toRaw fromRaw toVar pos kind expr);
     SET work._lin_dsstmts;
-    LENGTH s prev $4000 toRaw $200 toVar $64 kind $8 expr $4000 inner $4000 tok $200 old new $64;
+    LENGTH s prev $4000 toRaw fromRaw $200 toVar $64 kind $8 expr $4000 inner $4000 tok $200 old new $64;
     RETAIN qid 0 rxIf rxElse rxWhen rxAssign rxSum rxRen rxRen1 rxDo rxRenSt rxLit1 rxLit2;
     IF (_n_ = 1) THEN
     DO;
@@ -40,15 +41,16 @@
       rxWhen   = PRXPARSE('s/^\s*(when\s*\(.*?\)|otherwise)\b\s*//i');
       rxAssign = PRXPARSE('/^([A-Za-z_]\w*)\s*(?:[\[{(][^\]})]*[\]})])?\s*=\s*(.*)$/');
       rxSum    = PRXPARSE('/^([A-Za-z_]\w*)\s*\+\s*([^=].*)$/');
-      rxRen    = PRXPARSE('/\brename\s*=\s*\(([^)]*)\)/i');
+      rxRen    = PRXPARSE('/([A-Za-z_][\w.&]*)\s*\((?:[^()]|\([^()]*\))*?\brename\s*=\s*\(([^)]*)\)/i');
       rxDo     = PRXPARSE('/^do\s+([A-Za-z_]\w*)\s*=\s*(.*)$/i');
       rxRen1   = PRXPARSE('s/\brename\s*=\s*([A-Za-z_]\w*)\s*=\s*([A-Za-z_]\w*)/rename=($1=$2)/i');
       rxLit1   = PRXPARSE("s/'[^']*'/''/");
       rxLit2   = PRXPARSE('s/"[^"]*"/""/');
     END;
 
-    toRaw = '';
-    pos   = .;
+    toRaw   = '';
+    fromRaw = '';
+    pos     = .;
 
     /* a. rename= options anywhere in the statement (data / set / merge / update) */
     s = text;
@@ -60,7 +62,8 @@
     IF (start > stop) THEN p = 0;
     ELSE CALL PRXNEXT(rxRen, start, stop, s, p, l);
     DO WHILE (p > 0);
-      inner = PRXPOSN(rxRen, 1, s);
+      fromRaw = PRXPOSN(rxRen, 1, s);
+      inner   = PRXPOSN(rxRen, 2, s);
       inner = PRXCHANGE('s/\s*=\s*/=/', -1, inner);
       DO i = 1 TO COUNTW(inner, ' ');
         tok = SCAN(inner, i, ' ');
@@ -74,6 +77,7 @@
       IF (start > stop) THEN p = 0;
     ELSE CALL PRXNEXT(rxRen, start, stop, s, p, l);
     END;
+    fromRaw = '';
 
     /* b. peel off IF-THEN / ELSE / WHEN / OTHERWISE prefixes */
     prev = '*';
