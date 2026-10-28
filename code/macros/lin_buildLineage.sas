@@ -108,14 +108,26 @@
        AND ((NOT MISSING(e.toVar) AND o.ukey = UPCASE(e.toVar)) OR (MISSING(e.toVar) AND o.seq = e.pos))
     WHERE e.qid > 0;
 
+    /* ---- rename= option: the input data set it is attached to (when that is one of the step's inputs) ---- */
+    CREATE TABLE work._lin_rnin AS
+    SELECT DISTINCT r.eid, i.ds LENGTH=80
+    FROM &p_prefix._ref r
+    INNER JOIN &p_prefix._eexpr e ON e.eid = r.eid AND e.kind = 'RENAME'
+    INNER JOIN work._lin_a i ON i.step = e.step AND i.role = 'INPUT'
+       AND (i.ds = UPCASE(STRIP(r.qual))
+            OR (INDEX(r.qual, '.') = 0 AND SCAN(i.ds, 2, '.') = UPCASE(STRIP(r.qual))))
+    WHERE NOT MISSING(r.qual);
+
     /* ---- which input columns does each reference point to? ---- */
     CREATE TABLE work._lin_src0 AS
-    /* DATA step: any input column with that name */
+    /* DATA step: any input column with that name (a rename= option only the data set it belongs to) */
     SELECT r.eid, r.ident LENGTH=64, i.ds AS fromDs LENGTH=80, i.var AS fromVar LENGTH=64
     FROM &p_prefix._ref r
     INNER JOIN &p_prefix._eexpr e ON e.eid = r.eid
     INNER JOIN work._lin_a i ON i.step = e.step AND i.role = 'INPUT' AND i.ukey = UPCASE(r.ident)
     WHERE e.qid = 0
+      AND (NOT EXISTS (SELECT 1 FROM work._lin_rnin x WHERE x.eid = r.eid)
+           OR EXISTS (SELECT 1 FROM work._lin_rnin x WHERE x.eid = r.eid AND x.ds = i.ds))
     UNION
     /* SQL: alias.column with a known table */
     SELECT r.eid, r.ident, i.ds, i.var
@@ -268,7 +280,7 @@
   QUIT;
 
   PROC DATASETS LIB=WORK NOLIST NOWARN;
-    DELETE _lin_ghost _lin_a _lin_dsmem _lin_raw _lin_nm _lin_al _lin_tgt _lin_src0 _lin_dr _lin_res _lin_eng
+    DELETE _lin_ghost _lin_a _lin_dsmem _lin_raw _lin_nm _lin_al _lin_tgt _lin_rnin _lin_src0 _lin_dr _lin_res _lin_eng
            _lin_new _lin_name _lin_c0 _lin_miss _lin_file _lin_unres _lin_c1 _lin_writes;
   RUN; QUIT;
 
