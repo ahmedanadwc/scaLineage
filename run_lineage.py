@@ -7,7 +7,7 @@ Usage:
   python run_lineage.py --logs <folder with *.txt> --out <local output folder> [--attrs] [--no-steps]
                         [--no-column-dag] [--json] [--rank-dir LR]
 
-For every <name>.txt it writes <out>/<name>/<name>_dataset.dot, <name>_column.dot and three *.csv
+For every <name>.txt it writes <out>/<name>/<name>_dataset.dot, <name>_column.dot (plus <name>_dataset_attrs.dot with --attrs) and three *.csv
 files; <out>/lineage_summary.csv lists one row per log. If Graphviz ('dot') is on the PATH the
 *.dot files are also rendered to *.svg.
 

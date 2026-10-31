@@ -214,8 +214,17 @@ FILENAME tcsv CLEAR;
 %t_countRegex(p_file=&g_testRoot/out/eb_dataset.dot, p_regex=%str(shape=.oval.), p_outVar=t_steps)
 %t_count(p_ds=tb_steps)
 %t_assert(p_name=E10 dataset dot has a node per step, p_cond=&t_steps = &t_n)
-%t_countRegex(p_file=&g_testRoot/out/eb_dataset.dot, p_regex=%str(<TABLE ), p_outVar=t_tabs)
-%t_assert(p_name=E11 attrs=Y lists the columns in the data set nodes, p_cond=&t_tabs = 5)
+%t_countRegex(p_file=&g_testRoot/out/eb_dataset.dot, p_regex=%str(<TABLE ), p_outVar=t_tabs0)
+%t_assert(p_name=E11a dataset dot lists no columns, p_cond=&t_tabs0 = 0)
+%t_assert(p_name=E11b attrs=Y writes the dataset attrs dot, p_cond=%sysfunc(fileexist(&g_testRoot/out/eb_dataset_attrs.dot)) = 1)
+%t_countRegex(p_file=&g_testRoot/out/eb_dataset_attrs.dot, p_regex=%str(<TABLE ), p_outVar=t_tabs)
+%t_assert(p_name=E11c attrs dot lists the columns in the data set nodes, p_cond=&t_tabs = 5)
+%t_dotDangling(p_file=&g_testRoot/out/eb_dataset_attrs.dot, p_outVar=t_dang4)
+%t_assert(p_name=E11d attrs dot: every edge endpoint has a node, p_cond=&t_dang4 = 0)
+%t_countRegex(p_file=&g_testRoot/out/eb_dataset.dot, p_regex=%str(href=.eb_dataset_attrs\.svg), p_outVar=t_lk1)
+%t_assert(p_name=E11e dataset dot links to the attrs dot, p_cond=&t_lk1 = 1)
+%t_countRegex(p_file=&g_testRoot/out/eb_dataset_attrs.dot, p_regex=%str(href=.eb_column\.svg), p_outVar=t_lk2)
+%t_assert(p_name=E11f attrs dot links to the column dot, p_cond=&t_lk2 = 1)
 %t_countRegex(p_file=&g_testRoot/out/eb_column.dot, p_regex=%str(\->), p_outVar=t_cedges)
 
 %t_count(p_ds=tb_collin, p_where=%str(fromKind ne 'NONE'))
@@ -228,6 +237,9 @@ FILENAME tcsv CLEAR;
 %t_dotDangling(p_file=&g_testRoot/out/ebn_dataset.dot, p_outVar=t_dang3)
 %t_assert(p_name=E14 includeSteps=N: every edge endpoint has a node, p_cond=&t_dang3 = 0)
 %t_assert(p_name=E15 columnDag=N writes no column dot, p_cond=%sysfunc(fileexist(&g_testRoot/out/ebn_column.dot)) = 0)
+%t_assert(p_name=E16 attrs=N writes no attrs dot, p_cond=%sysfunc(fileexist(&g_testRoot/out/ebn_dataset_attrs.dot)) = 0)
+%t_countRegex(p_file=&g_testRoot/out/ebn_dataset.dot, p_regex=%str(href=), p_outVar=t_lk3)
+%t_assert(p_name=E17 attrs=N: dataset dot has no link, p_cond=&t_lk3 = 0)
 
 /* whole folder: 4 recordings + 1 empty file */
 OPTIONS DLCREATEDIR NONOTES;

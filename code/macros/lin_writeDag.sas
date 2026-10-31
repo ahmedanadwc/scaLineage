@@ -1,10 +1,12 @@
 /**
   @file lin_writeDag.sas
   @brief Draws the lineage of one SCAPROC recording as Graphviz (*.dot) DAGs.
-  @details Writes two files into p_outDir (render them with Graphviz, e.g. dot -Tsvg x.dot -o x.svg):
+  @details Writes up to three files into p_outDir (render them with Graphviz, e.g. dot -Tsvg x.dot -o x.svg):
 
-    <p_name>_dataset.dot   data set level DAG: files, data sets and steps
-                           (data sets are cylinders, or tables listing the columns when p_attrs_yn=Y)
+    <p_name>_dataset.dot   data set level DAG: files, data sets and steps (data sets are cylinders, no columns);
+                           with p_attrs_yn=Y it links to <p_name>_dataset_attrs.svg
+    <p_name>_dataset_attrs.dot  (only when p_attrs_yn=Y) the same DAG with the columns listed inside the data set
+                           nodes; links to <p_name>_column.svg when the column DAG is written
     <p_name>_column.dot    column level DAG: one box per column, grouped in a cluster per data set,
                            one arrow per lineage edge (colour = how the column was derived)
 
@@ -18,7 +20,7 @@
   @param [in] p_prefix= Prefix of the WORK tables. Default:lin.
   @param [in] p_outDir= Output folder. Required.
   @param [in] p_name= Base name of the output files. Required.
-  @param [in] p_attrs_yn= Y|N list the columns inside the data set nodes of the dataset DAG. Default:N.
+  @param [in] p_attrs_yn= Y|N also write <p_name>_dataset_attrs.dot, the dataset DAG with the columns listed. Default:N.
   @param [in] p_includeSteps_yn= Y|N draw the processing steps (with run time) in the dataset DAG. Default:Y.
   @param [in] p_columnDag_yn= Y|N also write the column DAG. Default:Y.
   @param [in] p_rankDir= TB|BT|LR|RL layout direction. Default:LR.
@@ -52,68 +54,32 @@
   RUN; QUIT;
 %mend lin_emit;
 
-%macro lin_writeDag(p_prefix=lin, p_outDir=, p_name=, p_attrs_yn=N, p_includeSteps_yn=Y
-, p_columnDag_yn=Y, p_rankDir=LR) / minoperator;
-
-  %LOCAL l_rankDir l_attrs l_steps;
-  %let l_rankDir = %upcase(&p_rankDir);
-  %if NOT (&l_rankDir IN (TB BT LR RL)) %then %let l_rankDir = LR;
-  %let l_attrs = %upcase(&p_attrs_yn);
-  %let l_steps = %upcase(&p_includeSteps_yn);
-
-  %if ((%SUPERQ(p_outDir) EQ ) OR (%SUPERQ(p_name) EQ )) %then
-  %do;
-    %put ERROR: lin_writeDag: p_outDir and p_name are required;
-    %return;
-  %end;
-
-  /* ---- columns of every data set version (from the ATTR records) ---- */
-  PROC SQL;
-    CREATE TABLE work._lin_cols AS
-    SELECT v.ds, v.ver, a.var, a.type, a.ord
-    FROM &p_prefix._attrs a
-    INNER JOIN &p_prefix._dsver v
-      ON v.step = a.step AND v.ds = a.ds AND ((a.role = 'INPUT' AND v.io = 'IN') OR (a.role = 'OUTPUT' AND v.io = 'OUT'))
-    ORDER BY v.ds, v.ver, a.var, a.ord;
-  QUIT;
-  DATA work._lin_cols;
-    SET work._lin_cols;
-    BY ds ver var;
-    IF (FIRST.var);
-  RUN;
-  PROC SORT DATA=work._lin_cols;
-    BY ds ver ord;
-  RUN;
-
-  /* ---- data set nodes: one per (ds, version); the version is only shown when a data set has several ---- */
-  PROC SQL;
-    CREATE TABLE work._lin_dsn AS
-    SELECT DISTINCT d.ds, d.ver, n.nver
-    FROM &p_prefix._dsver d
-    INNER JOIN (SELECT ds, COUNT(DISTINCT ver) AS nver FROM &p_prefix._dsver GROUP BY ds) n ON n.ds = d.ds
-    ORDER BY d.ds, d.ver;
-  QUIT;
-  DATA work._lin_dsn;
-    SET work._lin_dsn;
-    LENGTH id label $200;
-    id = CAT(STRIP(ds), '#', STRIP(PUT(ver, best12.)));      /* node id: no blanks or brackets */
-    IF (nver = 1) THEN label = ds;
-    ELSE label = CAT(STRIP(ds), ' (v', STRIP(PUT(ver, best12.)), ')');
-    IF (nver > 1 AND ver = 0) THEN label = CAT(STRIP(ds), ' (existing)');
-  RUN;
-
+/* dataset level DAG written to p_file; p_cols=Y lists the columns inside the data set nodes;
+   p_link (optional) = file the graph links to (href), p_linkLabel = the hint added to the graph label */
+%macro lin_dsDot(p_cols=N, p_file=, p_link=, p_linkLabel=);
   /* =========================== dataset level DAG =========================== */
   DATA work._lin_d1;
     LENGTH line $4000;
     sec = 1;
     seq = 1; line = 'digraph dag {'; OUTPUT;
     seq = 2; line = "  rankdir=&l_rankDir;"; OUTPUT;
-    seq = 3; line = CAT('  graph [label="\n', %lin_q("&p_name"), '"];'); OUTPUT;
+    %if (%SUPERQ(p_link) NE ) %then
+    %do;
+      /* the graph label carries a hint and the graph links to the next DAG (works once rendered to .svg) */
+      seq = 3;
+      line = CAT('  graph [label="\n', %lin_q("&p_name"), '\n', %lin_q("&p_linkLabel"),
+                 '" href="', %lin_q("&p_link"), '" tooltip="', %lin_q("&p_link"), '"];');
+      OUTPUT;
+    %end;
+    %else
+    %do;
+      seq = 3; line = CAT('  graph [label="\n', %lin_q("&p_name"), '"];'); OUTPUT;
+    %end;
     sec = 9;
     seq = 1; line = '}'; OUTPUT;
   RUN;
 
-  %if (&l_attrs = Y) %then
+  %if (&p_cols = Y) %then
   %do;
     /* one HTML table row per column */
     DATA work._lin_colstr (KEEP=ds ver cols);
@@ -147,7 +113,7 @@
     LENGTH line $4000 lab $4000;
     sec = 2;
     seq = _n_;
-    IF ("&l_attrs" = 'Y') THEN
+    IF ("&p_cols" = 'Y') THEN
     DO;
       lab = CATS('<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" BGCOLOR="lightblue"><TR><TD COLSPAN="2"><B>',
                  %lin_h(STRIP(label)), '</B></TD></TR>', cols, '</TABLE>>');
@@ -232,7 +198,69 @@
   DATA work._lin_dot;
     SET work._lin_d1 work._lin_d2 work._lin_d3 work._lin_d4 work._lin_d5;
   RUN;
-  %lin_emit(p_file=&p_outDir/&p_name._dataset.dot)
+  %lin_emit(p_file=&p_file)
+%mend lin_dsDot;
+
+%macro lin_writeDag(p_prefix=lin, p_outDir=, p_name=, p_attrs_yn=N, p_includeSteps_yn=Y
+, p_columnDag_yn=Y, p_rankDir=LR) / minoperator;
+
+  %LOCAL l_rankDir l_attrs l_steps l_lnkAttrs l_lnkCol;
+  %let l_rankDir = %upcase(&p_rankDir);
+  %if NOT (&l_rankDir IN (TB BT LR RL)) %then %let l_rankDir = LR;
+  %let l_attrs = %upcase(&p_attrs_yn);
+  %let l_steps = %upcase(&p_includeSteps_yn);
+
+  %if ((%SUPERQ(p_outDir) EQ ) OR (%SUPERQ(p_name) EQ )) %then
+  %do;
+    %put ERROR: lin_writeDag: p_outDir and p_name are required;
+    %return;
+  %end;
+
+  /* ---- columns of every data set version (from the ATTR records) ---- */
+  PROC SQL;
+    CREATE TABLE work._lin_cols AS
+    SELECT v.ds, v.ver, a.var, a.type, a.ord
+    FROM &p_prefix._attrs a
+    INNER JOIN &p_prefix._dsver v
+      ON v.step = a.step AND v.ds = a.ds AND ((a.role = 'INPUT' AND v.io = 'IN') OR (a.role = 'OUTPUT' AND v.io = 'OUT'))
+    ORDER BY v.ds, v.ver, a.var, a.ord;
+  QUIT;
+  DATA work._lin_cols;
+    SET work._lin_cols;
+    BY ds ver var;
+    IF (FIRST.var);
+  RUN;
+  PROC SORT DATA=work._lin_cols;
+    BY ds ver ord;
+  RUN;
+
+  /* ---- data set nodes: one per (ds, version); the version is only shown when a data set has several ---- */
+  PROC SQL;
+    CREATE TABLE work._lin_dsn AS
+    SELECT DISTINCT d.ds, d.ver, n.nver
+    FROM &p_prefix._dsver d
+    INNER JOIN (SELECT ds, COUNT(DISTINCT ver) AS nver FROM &p_prefix._dsver GROUP BY ds) n ON n.ds = d.ds
+    ORDER BY d.ds, d.ver;
+  QUIT;
+  DATA work._lin_dsn;
+    SET work._lin_dsn;
+    LENGTH id label $200;
+    id = CAT(STRIP(ds), '#', STRIP(PUT(ver, best12.)));      /* node id: no blanks or brackets */
+    IF (nver = 1) THEN label = ds;
+    ELSE label = CAT(STRIP(ds), ' (v', STRIP(PUT(ver, best12.)), ')');
+    IF (nver > 1 AND ver = 0) THEN label = CAT(STRIP(ds), ' (existing)');
+  RUN;
+
+  /* =========================== dataset level DAG =========================== */
+  /* the plain DAG never lists the columns; with p_attrs_yn=Y it links to a second DAG that does,
+     and that one links on to the column level DAG */
+  %let l_lnkAttrs = ;
+  %let l_lnkCol = ;
+  %if (&l_attrs = Y) %then %let l_lnkAttrs = &p_name._dataset_attrs.svg;
+  %if (%upcase(&p_columnDag_yn) = Y) %then %let l_lnkCol = &p_name._column.svg;
+  %lin_dsDot(p_cols=N, p_file=&p_outDir/&p_name._dataset.dot, p_link=&l_lnkAttrs, p_linkLabel=Click here to see Column attributes)
+  %if (&l_attrs = Y) %then
+    %lin_dsDot(p_cols=Y, p_file=&p_outDir/&p_name._dataset_attrs.dot, p_link=&l_lnkCol, p_linkLabel=Click here to see Column lineage);
 
   /* =========================== column level DAG =========================== */
   %if (%upcase(&p_columnDag_yn) = Y) %then

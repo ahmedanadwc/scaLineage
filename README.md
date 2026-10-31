@@ -6,7 +6,8 @@ Give it a folder of `*.txt` recordings. For each one it writes, into a sub-folde
 
 | File | What it is |
 |---|---|
-| `<name>_dataset.dot` | Data set level DAG: files, data set versions and processing steps (with run times) |
+| `<name>_dataset.dot` | Data set level DAG: files, data set versions and processing steps (with run times). No columns; with `p_attrs_yn=Y` / `--attrs` the graph label says "Click here to see Column attributes" and links to `<name>_dataset_attrs.svg` |
+| `<name>_dataset_attrs.dot` | Only with `p_attrs_yn=Y` / `--attrs`: the same DAG with the columns listed inside the data set nodes. The graph label says "Click here to see Column lineage" and links to `<name>_column.svg` |
 | `<name>_column.dot` | Column level DAG: one box per column, one cluster per data set, one arrow per lineage edge |
 | `<name>_column_lineage.csv` | One row per column edge (step, method, from data set / version / column, to data set / version / column, expression) |
 | `<name>_dataset_lineage.csv` | One row per step input / output (data sets with version, and files) |
@@ -15,7 +16,7 @@ Give it a folder of `*.txt` recordings. For each one it writes, into a sub-folde
 
 `lineage_summary.csv` (one row per recording) is written next to the sub-folders.
 
-Render the `.dot` files with Graphviz: `dot -Tsvg x_column.dot -o x_column.svg`.
+Render the `.dot` files with Graphviz: `dot -Tsvg x_column.dot -o x_column.svg`. The links inside the DAGs point to the `.svg` files next to them, so render all of them (`run_lineage.py` does) and open the `.svg` to click through.
 
 The DOT output is plain and portable: no global `node [...]` defaults in the data set DAG, every node carries its own shape and colour, and there is one `"a" -> "b"` statement per edge (no `{a b} -> {c}` set syntax). It is the same form as the SIMPLE theme of the older dotMySASProgram tool, so there is no theme option.
 
