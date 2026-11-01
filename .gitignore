@@ -2,3 +2,20 @@ output/
 __pycache__/
 *.pyc
 .claude/
+
+# graft's local graph cache — regenerable, not committed (run `graft build`).
+/graft/
+
+
+#Ignore vscode AI rules
+.github\instructions\codacy.instructions.md
+/.codegraph
+/.gemini
+/.github
+.ignore
+.mcp.json
+AGENTS.md
+*.md
+/graphify-out
+opencode.json
+/logs
