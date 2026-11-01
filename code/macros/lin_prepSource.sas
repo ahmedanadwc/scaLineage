@@ -1,9 +1,19 @@
 /**
-  @file lin_prepSource.sas
+  @file lin_prepsource.sas
   @brief Splits the recorded source of every step into statements.
   @details Reads &p_prefix._src (see %lin_readLog) and creates
 
-    &p_prefix._stmts   step, stmtno, text   one row per statement (no trailing semicolon)
+  <ul><li>work.&p_prefix._stmts: Source code for each step split into individual statements</li>
+  |Variable|Description|
+  |---|---|
+  |step|The step number of the statement|
+  |stmtno|The statement number within the step|
+  |text|The text of the statement (no trailing semicolon)|
+  </ul>
+
+  Example usage:
+
+      %lin_prepSource(p_prefix=&p_prefix, p_srcDsName=work.&p_prefix._src)
 
   Cleaning applied before splitting: block comments are removed, in-stream data
   (DATALINES/CARDS ... ;) is dropped, white space is collapsed, and semicolons inside
@@ -13,15 +23,25 @@
   lineage engines fall back to matching columns by name.
 
   @param [in] p_prefix= Prefix of the WORK tables. Default:lin.
+  @param [in] p_srcDsName= Source code for each step. Default: work.&p_prefix._src
+
+  <h4> Data Inputs </h4>
+  @li work.&p_prefix._src
+
+
+  <h4> Data Outputs </h4>
+  @li work.&p_prefix._stmts
+
 
   @version 9.4
   @author Ahmed Al-Attar
 **/
-%macro lin_prepSource(p_prefix=lin);
+
+%macro lin_prepSource(p_prefix=lin, p_srcDsName=work.&p_prefix._src);
 
   /* 1. glue the source lines of each step into one string, dropping in-stream data lines */
   DATA work._lin_oneline (KEEP=step src);
-    SET &p_prefix._src;
+    SET &p_srcDsName;
     BY step;
     LENGTH src $32000;
     RETAIN src '' inData 0;

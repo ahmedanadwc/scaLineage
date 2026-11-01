@@ -1,14 +1,16 @@
 /**
-  @file lin_writeDag.sas
+  @file lin_writedag.sas
   @brief Draws the lineage of one SCAPROC recording as Graphviz (*.dot) DAGs.
   @details Writes up to three files into p_outDir (render them with Graphviz, e.g. dot -Tsvg x.dot -o x.svg):
 
-    <p_name>_dataset.dot   data set level DAG: files, data sets and steps (data sets are cylinders, no columns);
-                           with p_attrs_yn=Y it links to <p_name>_dataset_attrs.svg
-    <p_name>_dataset_attrs.dot  (only when p_attrs_yn=Y) the same DAG with the columns listed inside the data set
-                           nodes; links to <p_name>_column.svg when the column DAG is written
-    <p_name>_column.dot    column level DAG: one box per column, grouped in a cluster per data set,
-                           one arrow per lineage edge (colour = how the column was derived)
+  <ul>
+  <li><p_name>_dataset.dot   data set level DAG: files, data sets and steps (data sets are cylinders, no columns);
+                           with p_attrs_yn=Y it links to <p_name>_dataset_attrs.svg</li>
+  <li><p_name>_dataset_attrs.dot  (only when p_attrs_yn=Y) the same DAG with the columns listed inside the data set
+                           nodes; links to <p_name>_column.svg when the column DAG is written</li>
+  <li><p_name>_column.dot    column level DAG: one box per column, grouped in a cluster per data set,
+                           one arrow per lineage edge (colour = how the column was derived)</li>
+  </ul>
 
   Colours in the column DAG:  grey = same name (NAME), blue = expression (EXPR), purple = rename,
   green = read from a file, red outline = unresolved (the step has source, but it does not say where the column came
@@ -16,6 +18,23 @@
   A data set written more than once appears once per version, e.g. WORK.ONE (v2).
 
   Needs the tables of %lin_readLog and %lin_buildLineage.
+  Example usage:
+  
+      %lin_writeDag(p_prefix=lin
+      , p_outDir=
+      , p_name=
+      , p_attrs_yn=Y
+      , p_includeSteps_yn=Y
+      , p_columnDag_yn=Y
+      , p_rankDir=LR
+      , p_stepsDsName=work.&p_prefix._steps
+      , p_dsioDsName=work.&p_prefix._dsio
+      , p_fileioDsName=work.&p_prefix._fileio
+      , p_attrsDsName=work.&p_prefix._attrs
+      , p_srcDsName=work.&p_prefix._src
+      , p_dsverDsName=work.&p_prefix._dsver
+      , p_cmemDsName=work.&p_prefix._cmem
+      , p_collinDsName=work.&p_prefix._collin)
 
   @param [in] p_prefix= Prefix of the WORK tables. Default:lin.
   @param [in] p_outDir= Output folder. Required.
@@ -24,23 +43,43 @@
   @param [in] p_includeSteps_yn= Y|N draw the processing steps (with run time) in the dataset DAG. Default:Y.
   @param [in] p_columnDag_yn= Y|N also write the column DAG. Default:Y.
   @param [in] p_rankDir= TB|BT|LR|RL layout direction. Default:LR.
+  @param [in] p_stepsDsName=Step information for each step. Default: work.&p_prefix._steps
+  @param [in] p_dsioDsName=Dataset input/output information for each step. Default: work.&p_prefix._dsio
+  @param [in] p_fileioDsName=File input/output information for each step. Default: work.&p_prefix._fileio
+  @param [in] p_attrsDsName=Attribute information for each step. Default: work.&p_prefix._attrs
+  @param [in] p_srcDsName=Source code for each step. Default: work.&p_prefix._src
+  @param [in] p_cmemDsName=Column memory information for each step. Default: work.&p_prefix._cmem
+  @param [in] p_collinDsName=Column lineage information for each step. Default: work.&p_prefix._collin
+  @param [in] p_dsverDsName=Dataset version information for each step. Default: work.&p_prefix._dsver
+
+
+  <h4> Data Inputs </h4>
+  @li work.&p_prefix._steps
+  @li work.&p_prefix._dsio
+  @li work.&p_prefix._fileio
+  @li work.&p_prefix._attrs
+  @li work.&p_prefix._src
+  @li work.&p_prefix._cmem
+  @li work.&p_prefix._collin
+  @li work.&p_prefix._dsver
+
 
   @version 9.4
   @author Ahmed Al-Attar
 **/
 
 /* expression that escapes backslashes and double quotes for a DOT string */
-%macro lin_q(p_x);
+%macro inner_lin_q(p_x);
   TRANWRD(TRANWRD(&p_x, '\', '\\'), '"', '\"')
-%mend lin_q;
+%mend inner_lin_q;
 
 /* expression that escapes the characters that are special inside an HTML label */
-%macro lin_h(p_x);
+%macro inner_lin_h(p_x);
   TRANWRD(TRANWRD(TRANWRD(&p_x, '&', '&amp;'), '<', '&lt;'), '>', '&gt;')
-%mend lin_h;
+%mend inner_lin_h;
 
 /* write work._lin_dot (sec, seq, line) to a file in section order */
-%macro lin_emit(p_file=);
+%macro inner_lin_emit(p_file=);
   PROC SORT DATA=work._lin_dot;
     BY sec seq;
   RUN;
@@ -52,11 +91,15 @@
   PROC DATASETS LIB=WORK NOLIST NOWARN;
     DELETE _lin_dot;
   RUN; QUIT;
-%mend lin_emit;
+%mend inner_lin_emit;
 
 /* dataset level DAG written to p_file; p_cols=Y lists the columns inside the data set nodes;
    p_link (optional) = file the graph links to (href), p_linkLabel = the hint added to the graph label */
-%macro lin_dsDot(p_cols=N, p_file=, p_link=, p_linkLabel=);
+%macro inner_lin_dsDot(p_cols=N
+, p_file=
+, p_link=
+, p_linkLabel=
+, p_stepsDsName=);
   /* =========================== dataset level DAG =========================== */
   DATA work._lin_d1;
     LENGTH line $4000;
@@ -67,13 +110,13 @@
     %do;
       /* the graph label carries a hint and the graph links to the next DAG (works once rendered to .svg) */
       seq = 3;
-      line = CAT('  graph [label="\n', %lin_q("&p_name"), '\n', %lin_q("&p_linkLabel"),
-                 '" href="', %lin_q("&p_link"), '" tooltip="', %lin_q("&p_link"), '"];');
+      line = CAT('  graph [label="\n', %inner_lin_q("&p_name"), '\n', %inner_lin_q("&p_linkLabel"),
+                 '" href="', %inner_lin_q("&p_link"), '" tooltip="', %inner_lin_q("&p_link"), '"];');
       OUTPUT;
     %end;
     %else
     %do;
-      seq = 3; line = CAT('  graph [label="\n', %lin_q("&p_name"), '"];'); OUTPUT;
+      seq = 3; line = CAT('  graph [label="\n', %inner_lin_q("&p_name"), '"];'); OUTPUT;
     %end;
     sec = 9;
     seq = 1; line = '}'; OUTPUT;
@@ -88,7 +131,7 @@
       LENGTH cols $30000;
       RETAIN cols;
       IF (FIRST.ver) THEN cols = '';
-      cols = CATS(cols, '<TR><TD ALIGN="LEFT">', %lin_h(STRIP(var)), '</TD><TD ALIGN="LEFT">',
+      cols = CATS(cols, '<TR><TD ALIGN="LEFT">', %inner_lin_h(STRIP(var)), '</TD><TD ALIGN="LEFT">',
                   IFC(type = 'CHARACTER', 'char', 'num'), '</TD></TR>');
       IF (LAST.ver) THEN OUTPUT;
     RUN;
@@ -116,11 +159,11 @@
     IF ("&p_cols" = 'Y') THEN
     DO;
       lab = CATS('<<TABLE BORDER="0" CELLBORDER="1" CELLSPACING="0" BGCOLOR="lightblue"><TR><TD COLSPAN="2"><B>',
-                 %lin_h(STRIP(label)), '</B></TD></TR>', cols, '</TABLE>>');
-      line = CAT('  "', %lin_q(STRIP(id)), '" [shape=plaintext label=', STRIP(lab), '];');
+                 %inner_lin_h(STRIP(label)), '</B></TD></TR>', cols, '</TABLE>>');
+      line = CAT('  "', %inner_lin_q(STRIP(id)), '" [shape=plaintext label=', STRIP(lab), '];');
     END;
     ELSE
-      line = CAT('  "', %lin_q(STRIP(id)), '" [shape=cylinder fillcolor=lightblue style=filled label="', %lin_q(STRIP(label)), '"];');
+      line = CAT('  "', %inner_lin_q(STRIP(id)), '" [shape=cylinder fillcolor=lightblue style=filled label="', %inner_lin_q(STRIP(label)), '"];');
     KEEP sec seq line;
   RUN;
 
@@ -134,7 +177,7 @@
     LENGTH line $4000;
     sec = 3;
     seq = _n_;
-    line = CAT('  "file:', %lin_q(STRIP(path)), '" [shape="note" fillcolor=lightgreen style=filled label="', %lin_q(STRIP(SCAN(path, -1, '/\'))), '" tooltip="', %lin_q(STRIP(path)), '"];');
+    line = CAT('  "file:', %inner_lin_q(STRIP(path)), '" [shape="note" fillcolor=lightgreen style=filled label="', %inner_lin_q(STRIP(SCAN(path, -1, '/\'))), '" tooltip="', %inner_lin_q(STRIP(path)), '"];');
     KEEP sec seq line;
   RUN;
 
@@ -142,7 +185,7 @@
   PROC SQL;
     CREATE TABLE work._lin_edge AS
     SELECT v.step, v.io, n.id AS node LENGTH=400
-    FROM &p_prefix._dsver v INNER JOIN work._lin_dsn n ON n.ds = v.ds AND n.ver = v.ver
+    FROM &&p_dsverDsName v INNER JOIN work._lin_dsn n ON n.ds = v.ds AND n.ver = v.ver
     UNION
     SELECT step, CASE role WHEN 'INPUT' THEN 'IN' ELSE 'OUT' END, CATS('file:', path)
     FROM &p_prefix._fileio;
@@ -153,7 +196,7 @@
     PROC SQL;
       CREATE TABLE work._lin_stp AS
       SELECT s.step, s.procname, s.durSec
-      FROM &p_prefix._steps s
+      FROM &p_stepsDsName s
       WHERE s.step IN (SELECT step FROM work._lin_edge)
       ORDER BY s.step;
     QUIT;
@@ -164,7 +207,7 @@
       seq = _n_;
       tm = '';
       IF (NOT MISSING(durSec)) THEN tm = CATS('\n', PUT(durSec, time12.2));
-      line = CAT('  "step_', STRIP(PUT(step, z4.)), '" [shape="oval" fillcolor=yellow style=filled label="', STRIP(PUT(step, z3.)), ' ', %lin_q(STRIP(procname)), STRIP(tm), '"];');
+      line = CAT('  "step_', STRIP(PUT(step, z4.)), '" [shape="oval" fillcolor=yellow style=filled label="', STRIP(PUT(step, z3.)), ' ', %inner_lin_q(STRIP(procname)), STRIP(tm), '"];');
       KEEP sec seq line;
     RUN;
     DATA work._lin_d5;
@@ -173,8 +216,8 @@
       sec = 5;
       seq = _n_;
       sid = CATS('step_', PUT(step, z4.));
-      IF (io = 'IN') THEN line = CAT('  "', %lin_q(STRIP(node)), '" -> "', STRIP(sid), '";');
-      ELSE line = CAT('  "', STRIP(sid), '" -> "', %lin_q(STRIP(node)), '";');
+      IF (io = 'IN') THEN line = CAT('  "', %inner_lin_q(STRIP(node)), '" -> "', STRIP(sid), '";');
+      ELSE line = CAT('  "', STRIP(sid), '" -> "', %inner_lin_q(STRIP(node)), '";');
       KEEP sec seq line;
     RUN;
   %end;
@@ -184,7 +227,7 @@
     PROC SQL;
       CREATE TABLE work._lin_d5 AS
       SELECT 5 AS sec, i.step * 10000 + MONOTONIC() AS seq
-           , CAT('  "', %lin_q(STRIP(i.node)), '" -> "', %lin_q(STRIP(o.node)), '";') AS line LENGTH=4000
+           , CAT('  "', %inner_lin_q(STRIP(i.node)), '" -> "', %inner_lin_q(STRIP(o.node)), '";') AS line LENGTH=4000
       FROM work._lin_edge i INNER JOIN work._lin_edge o ON o.step = i.step AND o.io = 'OUT'
       WHERE i.io = 'IN';
     QUIT;
@@ -198,13 +241,31 @@
   DATA work._lin_dot;
     SET work._lin_d1 work._lin_d2 work._lin_d3 work._lin_d4 work._lin_d5;
   RUN;
-  %lin_emit(p_file=&p_file)
-%mend lin_dsDot;
+  %inner_lin_emit(p_file=&p_file)
+%mend inner_lin_dsDot;
 
-%macro lin_writeDag(p_prefix=lin, p_outDir=, p_name=, p_attrs_yn=N, p_includeSteps_yn=Y
-, p_columnDag_yn=Y, p_rankDir=LR) / minoperator;
+
+%macro lin_writeDag(p_prefix=lin
+, p_outDir=
+, p_name=
+, p_attrs_yn=N
+, p_includeSteps_yn=Y
+, p_columnDag_yn=Y
+, p_rankDir=LR
+, p_stepsDsName=work.&p_prefix._steps
+, p_dsioDsName=work.&p_prefix._dsio
+, p_fileioDsName=work.&p_prefix._fileio
+, p_attrsDsName=work.&p_prefix._attrs
+, p_srcDsName=work.&p_prefix._src
+, p_dsverDsName=work.&p_prefix._dsver
+, p_cmemDsName=work.&p_prefix._cmem
+, p_collinDsName=work.&p_prefix._collin
+) / minoperator;
 
   %LOCAL l_rankDir l_attrs l_steps l_lnkAttrs l_lnkCol;
+  %LOCAL l_stepsDsName ;
+  %let l_stepsDsName = &p_stepsDsName;
+
   %let l_rankDir = %upcase(&p_rankDir);
   %if NOT (&l_rankDir IN (TB BT LR RL)) %then %let l_rankDir = LR;
   %let l_attrs = %upcase(&p_attrs_yn);
@@ -220,8 +281,8 @@
   PROC SQL;
     CREATE TABLE work._lin_cols AS
     SELECT v.ds, v.ver, a.var, a.type, a.ord
-    FROM &p_prefix._attrs a
-    INNER JOIN &p_prefix._dsver v
+    FROM &p_attrsDsName a
+    INNER JOIN &p_dsverDsName v
       ON v.step = a.step AND v.ds = a.ds AND ((a.role = 'INPUT' AND v.io = 'IN') OR (a.role = 'OUTPUT' AND v.io = 'OUT'))
     ORDER BY v.ds, v.ver, a.var, a.ord;
   QUIT;
@@ -238,8 +299,8 @@
   PROC SQL;
     CREATE TABLE work._lin_dsn AS
     SELECT DISTINCT d.ds, d.ver, n.nver
-    FROM &p_prefix._dsver d
-    INNER JOIN (SELECT ds, COUNT(DISTINCT ver) AS nver FROM &p_prefix._dsver GROUP BY ds) n ON n.ds = d.ds
+    FROM &p_dsverDsName d
+    INNER JOIN (SELECT ds, COUNT(DISTINCT ver) AS nver FROM &p_dsverDsName GROUP BY ds) n ON n.ds = d.ds
     ORDER BY d.ds, d.ver;
   QUIT;
   DATA work._lin_dsn;
@@ -258,9 +319,11 @@
   %let l_lnkCol = ;
   %if (&l_attrs = Y) %then %let l_lnkAttrs = &p_name._dataset_attrs.svg;
   %if (%upcase(&p_columnDag_yn) = Y) %then %let l_lnkCol = &p_name._column.svg;
-  %lin_dsDot(p_cols=N, p_file=&p_outDir/&p_name._dataset.dot, p_link=&l_lnkAttrs, p_linkLabel=Click here to see Column attributes)
+  %inner_lin_dsDot(p_cols=N, p_file=&p_outDir/&p_name._dataset.dot, p_link=&l_lnkAttrs, p_linkLabel=Click here to see Column attributes
+  , p_stepsDsName=&l_stepsDsName)
   %if (&l_attrs = Y) %then
-    %lin_dsDot(p_cols=Y, p_file=&p_outDir/&p_name._dataset_attrs.dot, p_link=&l_lnkCol, p_linkLabel=Click here to see Column lineage);
+    %inner_lin_dsDot(p_cols=Y, p_file=&p_outDir/&p_name._dataset_attrs.dot, p_link=&l_lnkCol, p_linkLabel=Click here to see Column lineage
+     , p_stepsDsName=&l_stepsDsName);
 
   /* =========================== column level DAG =========================== */
   %if (%upcase(&p_columnDag_yn) = Y) %then
@@ -270,16 +333,16 @@
       CREATE TABLE work._lin_cn AS
       SELECT ds, ver, var FROM work._lin_cols
       UNION
-      SELECT toDs, toVer, toVar FROM &p_prefix._collin
+      SELECT toDs, toVer, toVar FROM &p_collinDsName
       UNION
-      SELECT fromDs, fromVer, fromVar FROM &p_prefix._collin WHERE fromKind = 'DS';
+      SELECT fromDs, fromVer, fromVar FROM &p_collinDsName WHERE fromKind = 'DS';
 
       CREATE TABLE work._lin_cn2 AS
       SELECT c.ds, c.ver, c.var, COALESCE(n.label, CAT(STRIP(c.ds), ' (v', STRIP(PUT(c.ver, best12.)), ')')) AS label LENGTH=200
-           , CASE WHEN EXISTS (SELECT 1 FROM &p_prefix._collin x
+           , CASE WHEN EXISTS (SELECT 1 FROM &p_collinDsName x
                                WHERE x.method = 'UNRESOLVED' AND x.toDs = c.ds AND x.toVer = c.ver AND x.toVar = c.var)
                   THEN 'red'
-                  WHEN EXISTS (SELECT 1 FROM &p_prefix._collin x
+                  WHEN EXISTS (SELECT 1 FROM &p_collinDsName x
                                WHERE x.method = 'NOSOURCE' AND x.toDs = c.ds AND x.toVer = c.ver AND x.toVar = c.var)
                   THEN 'darkorange' ELSE 'gray40' END AS colr LENGTH=10
            , o.ord
@@ -290,7 +353,7 @@
 
       /* file / in-stream sources */
       CREATE TABLE work._lin_src AS
-      SELECT DISTINCT fromKind, fromDs, step FROM &p_prefix._collin WHERE fromKind IN ('FILE', 'INLINE');
+      SELECT DISTINCT fromKind, fromDs, step FROM &p_collinDsName WHERE fromKind IN ('FILE', 'INLINE');
     QUIT;
 
     DATA work._lin_c2;
@@ -306,12 +369,12 @@
         line = CAT('  subgraph "cluster_', STRIP(PUT(cl, best12.)), '" {');
         OUTPUT;
         seq + 1;
-        line = CAT('    label="', %lin_q(STRIP(label)), '"; style="filled,rounded"; fillcolor=lightblue; color=steelblue; fontsize=14;');
+        line = CAT('    label="', %inner_lin_q(STRIP(label)), '"; style="filled,rounded"; fillcolor=lightblue; color=steelblue; fontsize=14;');
         OUTPUT;
       END;
       id = CATS(ds, '#', ver, '.', var);
       seq + 1;
-      line = CAT('    "', %lin_q(STRIP(id)), '" [shape=box style=filled fillcolor=white color=', STRIP(colr), ' label="', %lin_q(STRIP(var)), '"];');
+      line = CAT('    "', %inner_lin_q(STRIP(id)), '" [shape=box style=filled fillcolor=white color=', STRIP(colr), ' label="', %inner_lin_q(STRIP(var)), '"];');
       OUTPUT;
       IF (LAST.ver) THEN
       DO;
@@ -328,14 +391,14 @@
       sec = 3;
       seq = _n_;
       IF (fromKind = 'FILE') THEN
-        line = CAT('  "file:', %lin_q(STRIP(fromDs)), '" [shape="note" fillcolor=lightgreen style=filled label="', %lin_q(STRIP(SCAN(fromDs, -1, '/\'))), '" tooltip="', %lin_q(STRIP(fromDs)), '"];');
+        line = CAT('  "file:', %inner_lin_q(STRIP(fromDs)), '" [shape="note" fillcolor=lightgreen style=filled label="', %inner_lin_q(STRIP(SCAN(fromDs, -1, '/\'))), '" tooltip="', %inner_lin_q(STRIP(fromDs)), '"];');
       ELSE
         line = CAT('  "inline:', STRIP(PUT(step, best12.)), '" [shape="note" fillcolor=lightgreen style=filled label="in-stream data (step ', STRIP(PUT(step, best12.)), ')"];');
       KEEP sec seq line;
     RUN;
 
     DATA work._lin_c4;
-      SET &p_prefix._collin (WHERE=(method NE 'UNRESOLVED' AND fromKind NE 'NONE'));
+      SET &p_collinDsName (WHERE=(method NE 'UNRESOLVED' AND fromKind NE 'NONE'));
       LENGTH line $4000 src dst $400 colr $20 tip $1000;
       sec = 5;
       seq = _n_;
@@ -351,7 +414,7 @@
       END;
       tip = CAT('step ', STRIP(PUT(step, best12.)), ' ', STRIP(procname), ' ', STRIP(method));
       IF (NOT MISSING(expr)) THEN tip = CAT(STRIP(tip), ': ', STRIP(expr));
-      line = CAT('  "', %lin_q(STRIP(src)), '" -> "', %lin_q(STRIP(dst)), '" [color=', STRIP(colr), ' tooltip="', %lin_q(STRIP(tip)), '"];');
+      line = CAT('  "', %inner_lin_q(STRIP(src)), '" -> "', %inner_lin_q(STRIP(dst)), '" [color=', STRIP(colr), ' tooltip="', %inner_lin_q(STRIP(tip)), '"];');
       KEEP sec seq line;
     RUN;
 
@@ -360,7 +423,7 @@
       sec = 1;
       seq = 1; line = 'digraph column_lineage {'; OUTPUT;
       seq = 2; line = "  rankdir=&l_rankDir; compound=true;"; OUTPUT;
-      seq = 3; line = CAT('  graph [label="\n', %lin_q("&p_name"), ' (column lineage)"];'); OUTPUT;
+      seq = 3; line = CAT('  graph [label="\n', %inner_lin_q("&p_name"), ' (column lineage)"];'); OUTPUT;
       seq = 4; line = '  node [fontname="Helvetica" fontsize=11];'; OUTPUT;
       sec = 9;
       seq = 1; line = '}'; OUTPUT;
@@ -369,7 +432,7 @@
     DATA work._lin_dot;
       SET work._lin_c1 work._lin_c2 work._lin_c3 work._lin_c4;
     RUN;
-    %lin_emit(p_file=&p_outDir/&p_name._column.dot)
+    %inner_lin_emit(p_file=&p_outDir/&p_name._column.dot)
   %end;
 
   PROC DATASETS LIB=WORK NOLIST NOWARN;

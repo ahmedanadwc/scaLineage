@@ -1,32 +1,70 @@
 /**
-  @file lin_exprSql.sas
+  @file lin_exprsql.sas
   @brief Extracts column derivations from the recorded source of PROC SQL steps.
   @details Understands CREATE TABLE|VIEW x AS SELECT ... and INSERT INTO x SELECT ..., including joins,
   table aliases, CASE expressions, calculated columns and UNION / INTERSECT / EXCEPT.
   Creates
 
-    &p_prefix._exprSql   step, qid, toRaw, toVar, pos, kind(=EXPR), expr   one row per select item
-    &p_prefix._alias     step, qid, alias, tblRaw                          tables of each query segment
+  <ul><li>work.&p_prefix._exprSql: Column derivations from the recorded source of PROC SQL steps</li>
+|Variable|Description|
+|---|---|
+|step|The step number of the SQL step|
+|qid|The query ID (one per SELECT segment)|
+|toRaw|The raw text of the target (output) column|
+|toVar|The name of the target (output) column|
+|pos|The position of the column in the output|
+|kind|The kind of derivation (always EXPR)|
+|expr|The expression that defines the column|
+
+<li>work.&p_prefix._alias: Concatenated Library alias information</li>
+|Variable|Description|
+|---|---|
+|step|The step number of the SQL step|
+|qid|The query ID (one per SELECT segment)|
+|alias|The alias of the table|
+|tblRaw|The raw text of the table|
+</ul>
+
+  Example usage:
+
+      %lin_exprSql(p_prefix=&p_prefix, p_stmtsDsName=work.&p_prefix._stmts
+      , p_stepsDsName=work.&p_prefix._steps)
 
   qid numbers the query segments of a step (a UNION has one qid per SELECT). Select items of the
   second and later segments take the column name of the item at the same position in the first segment.
   SELECT * / a.* items produce no row: they are covered by matching the column names.
 
-  Not handled: nested sub-queries in the FROM clause are treated as unknown tables (the columns
+  @note Not handled: nested sub-queries in the FROM clause are treated as unknown tables (the columns
   are then matched by name against every input table).
 
   @param [in] p_prefix= Prefix of the WORK tables. Default:lin.
+  @param [in] p_stmtsDsName=Source code for each step. Default: work.&p_prefix._stmts
+  @param [in] p_stepsDsName=Step information for each step. Default: work.&p_prefix._steps
+
+
+  <h4> Data Inputs </h4>
+  @li work.&p_prefix._stmts
+  @li work.&p_prefix._steps
+
+
+  <h4> Data Outputs </h4>
+  @li work.&p_prefix._exprSql
+  @li work.&p_prefix._alias
+
 
   @version 9.4
   @author Ahmed Al-Attar
 **/
-%macro lin_exprSql(p_prefix=lin);
+
+%macro lin_exprSql(p_prefix=lin
+, p_stmtsDsName=work.&p_prefix._stmts
+, p_stepsDsName=work.&p_prefix._steps);
 
   PROC SQL;
     CREATE TABLE work._lin_sqlstmts AS
     SELECT a.step, a.stmtno, a.text
-    FROM &p_prefix._stmts a
-    INNER JOIN &p_prefix._steps b ON a.step = b.step
+    FROM &p_stmtsDsName a
+    INNER JOIN &p_stepsDsName b ON a.step = b.step
     WHERE b.procname = 'SQL'
     ORDER BY a.step, a.stmtno;
   QUIT;

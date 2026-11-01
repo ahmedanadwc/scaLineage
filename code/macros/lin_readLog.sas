@@ -1,15 +1,63 @@
 /**
-  @file lin_readLog.sas
+  @file lin_readlog.sas
   @brief Reads ONE SCAPROC (SAS Code Analyzer) recording into tidy lineage tables.
   @details Every record in the recording starts with the text  /* JOBSPLIT:  . The step number is
   advanced on each TASKSTARTTIME record, so every table below can be joined on STEP.
 
+  
   Creates (all in WORK, named with the p_prefix):
-    &p_prefix._steps   step, procname, elapsed, startDt, durSec
-    &p_prefix._dsio    step, role (INPUT|OUTPUT|UPDATE), ds (LIB.MEM, upper case), memtype (DATA|VIEW)
-    &p_prefix._fileio  step, role (INPUT|OUTPUT), path
-    &p_prefix._attrs   step, ord (record order), role (INPUT|OUTPUT), ds, var, type, length, label, format, informat
-    &p_prefix._src     step, lineno, text   (the submitted source of the step, comments/blank lines removed)
+  <ul>
+    <li>work.&p_prefix._steps: Step information for each step</li>
+    |variable|Description|
+    |---|---|
+    |step|The step number of the step|
+    |procname|The name of the procedure|
+    |elapsed|The elapsed time of the step|
+    |startDt|The start date and time of the step|
+    |durSec|The duration of the step in seconds|
+
+    <li>work.&p_prefix._dsio: Dataset input/output information for each step</li>
+    |variable|Description|
+    |---|---|
+    |step|The step number of the step|
+    |role|The role of the dataset (INPUT, OUTPUT, UPDATE)|
+    |ds|The dataset name (LIB.MEM, upper case)|
+    |memtype|The type of the dataset (DATA, VIEW)|
+
+    <li>work.&p_prefix._fileio: File input/output information for each step</li>
+    |variable|Description|
+    |---|---|
+    |step|The step number of the step|
+    |role|The role of the file (INPUT, OUTPUT)|
+    |path|The path of the file|
+
+    <li>work.&p_prefix._attrs: Attribute information for each step</li>
+    |variable|Description|
+    |---|---|
+    |step|The step number of the step|
+    |ord|The record order|
+    |role|The role of the attribute (INPUT, OUTPUT)|
+    |ds|The dataset name (LIB.MEM, upper case)|
+    |var|The variable name|
+    |type|The type of the variable|
+    |length|The length of the variable|
+    |label|The label of the variable|
+    |format|The format of the variable|
+    |informat|The informat of the variable|
+
+    <li>work.&p_prefix._src: Source code for each step</li>
+    |variable|Description|
+    |---|---|
+    |step|The step number of the step|
+    |lineno|The line number of the source code|
+    |text|The text of the source code|
+
+    <li>work.&p_prefix._cmem: Concatenated Library alias information</li>
+    |variable|Description|
+    |---|---|
+    |alias|The alias of the library|
+    |rlib|The real library name|
+  </ul>
 
   Utility files (WORK.'SASTMP-...'.UTILITY, written by PROC SORT) are ignored. SAS opens concatenated
   libraries such as SASHELP under an internal alias (libref #C00003, announced by a CONCATMEM record);
@@ -17,17 +65,35 @@
 
   Example usage:
 
-      %lin_readLog(p_inFile=%str(D:/logs/sca__fuzzy.txt), p_prefix=lin)
+      %lin_readLog(p_inFile=%str(<Path>/<FileName>.txt), p_prefix=lin)
 
   @param [in] p_inFile= Full path of the SCAPROC text file. Required.
   @param [in] p_prefix= Prefix of the WORK tables created. Default:lin.
 
+  <h4> Data Outputs </h4>
+  @li work.&p_prefix._steps
+  @li work.&p_prefix._dsio
+  @li work.&p_prefix._fileio
+  @li work.&p_prefix._attrs
+  @li work.&p_prefix._src
+  @li work.&p_prefix._cmem
+
   @version 9.4
   @author Ahmed Al-Attar
 **/
+
 %macro lin_readLog(p_inFile=, p_prefix=lin);
+	%LOCAL
+		l_sTime
+		l_eTime
+		l_rTime
+		;
 
   %GLOBAL g_linRC;
+
+	* Record Starting Time;
+	%let l_sTime = %sysfunc(time());
+
   %let g_linRC = 0;
 
   %if (%SUPERQ(p_inFile) EQ ) %then
@@ -187,5 +253,12 @@
     DROP nextDt p;
   RUN;
 
+	%goto finished;
+
+	%finished:
+		%let l_eTime=%sysfunc(time());
+		%let l_rTime=%sysfunc(putn(%sysevalf(&l_eTime - &l_sTime),time12.2));
+		%PUT >>> lin_readLog :>>> Total RunTime = &l_rTime;
+		;
 
 %mend lin_readLog;

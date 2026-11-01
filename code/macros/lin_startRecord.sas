@@ -1,32 +1,31 @@
 /**
-  @file lin_startRecord.sas
+  @file lin_startrecord.sas
   @brief Starts the SAS Code Analyzer (PROC SCAPROC) recording for the code that follows.
-  @details Records into p_outFile with the options the lineage macros need: ATTR (column attributes,
-  without them no column lineage can be traced), OPENTIMES (step run times) and EXPANDMACROS. These
-  three are always set; p_extraOptions adds more RECORD options. SCAPROC appends to an existing
-  file, so the file is deleted first (p_replace_yn=Y). Finish with %lin_stopRecord.
-
-  Based on %util_initScaproc by Ahmed Al-Attar, itself inspired by
-  https://support.sas.com/resources/papers/proceedings17/1104-2017.pdf
+  @details Records into p_outFile with the options the lineage macros need: 
+  <ul>
+  <li>ATTR (column attributes, without them no column lineage can be traced)</li>
+  <li>OPENTIMES (step run times)</li>
+  <li>EXPANDMACROS</li>
+  </ul>
+  These three are always set. The SCAPROC appends to an existing file, so the file is deleted first (p_replace_yn=Y).
 
   Example usage:
 
-      %lin_startRecord(p_outFile=%str(~/scaLineage/logs/my_program.txt))
-      ... your program ...
-      %lin_stopRecord
+      %lin_startRecord(p_outFile=%str(<Path>/<FileName>.txt)
+      , p_replace_yn=Y, p_enableFlagName=g_enableScaProc)
+
 
   @param [in] p_outFile= Full path of the recording file. Required. Unix and Windows paths both work.
-  @param [in] p_extraOptions= Further PROC SCAPROC RECORD options. Default: none.
   @param [in] p_replace_yn= Y deletes an existing recording file first. Default:Y.
   @param [in] p_enableFlagName= Optional. Name of a macro variable; recording starts only when it is
-                                set to 1, Y or VERBOSE. Default: none (always record).
+                                set to 1, Y or VERBOSE. Default: g_enableScaProc.
 
   @version 9.4
+  @author Ahmed Al-Attar
 **/
 %MACRO lin_startRecord(p_outFile=
-, p_extraOptions=
 , p_replace_yn=Y
-, p_enableFlagName=) / minoperator;
+, p_enableFlagName=g_enableScaProc) / minoperator;
 
   %LOCAL l_flag;
 
@@ -53,7 +52,7 @@
   %end;
 
   PROC SCAPROC;
-    RECORD "&p_outFile" ATTR OPENTIMES EXPANDMACROS &p_extraOptions;
+    RECORD "&p_outFile" ATTR OPENTIMES EXPANDMACROS;
   RUN;
 
 %MEND lin_startRecord;

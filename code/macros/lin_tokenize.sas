@@ -1,28 +1,71 @@
 /**
   @file lin_tokenize.sas
   @brief Turns the derivation expressions into column references.
-  @details Reads &p_prefix._exprDs and &p_prefix._exprSql and creates
-
-    &p_prefix._eexpr eid, step, qid, toRaw, toVar, pos, kind, expr   one row per expression
-    &p_prefix._ref   eid, qual, ident, calc                           one row per column reference
-
+  @details Reads work.&p_prefix._exprDs and work.&p_prefix._exprSql and creates
+  
+  <ul>
+  <li>work.&p_prefix._eexpr: Expression information for each step.</li>
+  |Variable|Description|
+  |---|---|
+  |eid|Expression ID|
+  |step|Step number|
+  |qid|Query ID|
+  |toRaw|Target raw column|
+  |toVar|Target variable|
+  |pos|Position in the expression|
+  |kind|Type of expression|
+  |expr|Expression text|
+  |qual|Qualifier (alias or data set)|
+  |ident|Column identifier|
+  |calc|Flag indicating if the column is calculated|
+  
+  <li>work.&p_prefix._ref: Column references for each expression.</li>
+  |Variable|Description|
+  |---|---|
+  |eid|Expression ID|
+  |qual|Qualifier (alias or data set)|
+  |ident|Column identifier|
+  |calc|Flag indicating if the column is calculated|
+  </ul>
+  
   An expression is the right hand side of one assignment or select item. A reference is a column
   name used inside it. Quoted strings, function calls
   (name followed by a bracket), formats (name followed by a dot), macro variables, numbers and
   language keywords are not references. 'alias.column' keeps the alias in QUAL, and a column that
   follows the SQL keyword CALCULATED has CALC=1. RENAME rows give one reference to the old name; its QUAL is the data set of the rename= option.
 
+  Example usage:
+  
+      %lin_tokenize(p_prefix=lin)
+
   @param [in] p_prefix= Prefix of the WORK tables. Default:lin.
+  @param [in] p_exprSqlDsName=Expression information for each SQL step. Default: work.&p_prefix._exprSql
+  @param [in] p_exprDsDsName=Expression information for each DATA step. Default: work.&p_prefix._exprDs
+
+
+  <h4> Data Inputs </h4>
+  @li work.&p_prefix._exprSql
+  @li work.&p_prefix._exprDs
+
+
+  <h4> Data Outputs </h4>
+  @li work.&p_prefix._eexpr
+  @li work.&p_prefix._ref
+
 
   @version 9.4
   @author Ahmed Al-Attar
 **/
-%macro lin_tokenize(p_prefix=lin);
+
+%macro lin_tokenize(p_prefix=lin
+, p_exprSqlDsName=work.&p_prefix._exprSql
+, p_exprDsDsName=work.&p_prefix._exprDs);
 
   DATA &p_prefix._eexpr (KEEP=eid step qid toRaw toVar pos kind expr)
        &p_prefix._ref   (KEEP=eid qual ident calc);
+        
     LENGTH fromRaw $200;
-    SET &p_prefix._exprDs &p_prefix._exprSql;
+    SET &p_exprDsDsName &p_exprSqlDsName;
     LENGTH e $4000 qual ident $64 nc pc $1 kw $600;
     RETAIN rxLit1 rxLit2 rxTok kw;
     IF (_n_ = 1) THEN

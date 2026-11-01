@@ -1,31 +1,63 @@
 /**
-  @file lin_exprDataStep.sas
+  @file lin_exprdatastep.sas
   @brief Extracts column derivations from the recorded source of DATA steps.
   @details Looks at the statements of every DATASTEP step (see %lin_prepSource) and creates
 
-    &p_prefix._exprDs   step, qid(=0), toRaw(blank = every output), fromRaw, toVar, pos, kind, expr
+    <ul>
+      <li>work.&p_prefix._exprDs: Column derivations from the recorded source of DATA steps</li>
+    </ul>
+|Variable|Description|
+|---|---|
+|step|The step number of the DATA step|
+|qid|The query ID (always 0 for DATA steps)|
+|toRaw|The raw text of the target (output) column|
+|fromRaw|The raw text of the source column|
+|toVar|The name of the target (output) column|
+|pos|The position of the column in the output|
+|kind|The kind of derivation (EXPR, RENAME, INPUT)<br>See the table below for descriptions of each kind|
+|expr|The expression that defines the column|
 
-  kind:
-    EXPR    assignment (x = expr;) or sum statement (x + expr;); expr holds the right hand side
-    RENAME  rename=(old=new) option or RENAME statement; toVar = new name, expr = old name;
-            fromRaw = data set the rename= option is attached to (blank for a RENAME statement)
-    INPUT   variable read by an INPUT statement (comes from the INFILE / in-stream data)
+|Kind|Description|
+|---|---|
+|EXPR|assignment (x = expr;) or sum statement (x + expr;); expr holds the right hand side|
+|RENAME|rename=(old=new) option or RENAME statement; toVar = new name, expr = old name; fromRaw = data set the rename= option is attached to (blank for a RENAME statement)|
+|INPUT|variable read by an INPUT statement (comes from the INFILE / in-stream data)|
 
   Leading IF ... THEN / ELSE / WHEN / OTHERWISE clauses are removed so the assignment behind them
   is still seen. Conditions are not treated as sources (data lineage, not control lineage).
 
+
+  Example usage:
+
+      %lin_exprDataStep(p_prefix=&p_prefix
+      , p_stmtsDsName=work.&p_prefix._stmts
+      , p_stepsDsName=work.&p_prefix._steps)
+
+
   @param [in] p_prefix= Prefix of the WORK tables. Default:lin.
+  @param [in] p_stmtsDsName=Source code for each step. Default: work.&p_prefix._stmts
+  @param [in] p_stepsDsName=Step information for each step. Default: work.&p_prefix._steps
+
+  <h4> Data Inputs </h4>
+  @li work.&p_prefix._stmts
+  @li work.&p_prefix._steps
+
+  <h4> Data Outputs </h4>
+  @li work.&p_prefix._exprDs
 
   @version 9.4
   @author Ahmed Al-Attar
 **/
-%macro lin_exprDataStep(p_prefix=lin);
+
+%macro lin_exprDataStep(p_prefix=lin
+, p_stmtsDsName=work.&p_prefix._stmts
+, p_stepsDsName=work.&p_prefix._steps);
 
   PROC SQL;
     CREATE TABLE work._lin_dsstmts AS
     SELECT a.step, a.stmtno, a.text
-    FROM &p_prefix._stmts a
-    INNER JOIN &p_prefix._steps b ON a.step = b.step
+    FROM &p_stmtsDsName a
+    INNER JOIN &p_stepsDsName b ON a.step = b.step
     WHERE b.procname = 'DATASTEP'
     ORDER BY a.step, a.stmtno;
   QUIT;

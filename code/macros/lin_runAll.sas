@@ -1,17 +1,24 @@
 /**
-  @file lin_runAll.sas
+  @file lin_runall.sas
   @brief Extracts lineage and draws the DAGs for EVERY SCAPROC text file in a folder.
   @details Lists p_logDir, and runs %lin_processLog for each file with the extension p_ext.
-  Every log gets its own sub-folder under p_outDir (named after the file), holding the
-  *_dataset.dot, *_column.dot and *.csv files. Files that are empty or hold no SCAPROC steps are
-  reported in the summary and skipped. The one-row-per-log summary is written to
+  Every log gets its own sub-folder under p_outDir (named after the file), holding the files below
+
+  <ul><li>*_dataset.dot </li>
+  <li>*_dataset_attrs.dot </li>
+  <li>*_column.dot </li>
+  <li>*_steps.csv </li>
+  <li>*_dataset_lineage.csv </li>
+  <li>*_column_lineage.csv </li>
+  </ul>
+
+  Files that are empty or hold no SCAPROC steps are reported in the summary and skipped. The one-row-per-log summary is written to
   <p_outDir>/lineage_summary.csv and is left in WORK.LIN_SUMMARY.
 
   Example usage:
 
-      %lin_runAll(
-        p_logDir=%str(~/dotMySASProgram/logs)
-      , p_outDir=%str(~/dotMySASProgram/lineage)
+      %lin_runAll(p_logDir=%str(<Path>/logs)
+      , p_outDir=%str(<Path>/lineage)
       , p_attrs_yn=Y)
 
   @param [in] p_logDir= Folder holding the SCAPROC text files. Required.
@@ -22,6 +29,9 @@
   @param [in] p_columnDag_yn= Y|N also write the column DAG. Default:Y.
   @param [in] p_rankDir= TB|BT|LR|RL layout direction. Default:LR.
   @param [in] p_json_yn= Y|N also write a .json graph per recording. Default:N.
+
+  <h4> SAS Macros </h4>
+  @li lin_readlog.sas
 
   @version 9.4
   @author Ahmed Al-Attar
