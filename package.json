@@ -1,0 +1,9 @@
+{
+  "name": "scaLineage" ,
+  "description": "Custom built SAS macro programs to trigger recording and extracting information about input, output, and the use of macro symbols from a SAS program while it is running. The captured information can provide a simple static data lineage diagram. As a minimum, Base SAS Software, version 9.4 Maintenance 4 installation is required to run these macros." , 
+  "keywords": ["SAS","GRAPHVIS","DOT","DATA","LINEAGE","API","MACROS"] , 
+  "author": "Ahmed Al-Attar <ahmed.al-attar@anadwc.com>" , 
+  "publishConfig": {"access": "public"} , 
+  "homepage": "https://core.sasjs.io" ,
+  "main": "index.js"
+}

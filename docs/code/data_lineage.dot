@@ -1,0 +1,46 @@
+digraph sasjsdoc{
+n0 [ label="WORK.&P_PREFIX._STEPS"  shape="cylinder" style="filled" color="#e6194b"]
+n1 [ label="WORK.&P_PREFIX._DSIO"  shape="cylinder" style="filled" color="#e6194b"]
+n2 [ label="WORK.&P_PREFIX._FILEIO"  shape="cylinder" style="filled" color="#e6194b"]
+n3 [ label="WORK.&P_PREFIX._ATTRS"  shape="cylinder" style="filled" color="#e6194b"]
+n4 [ label="WORK.&P_PREFIX._STMTS"  shape="cylinder" style="filled" color="#e6194b"]
+n5 [ label="WORK.&P_PREFIX._ALIAS"  shape="cylinder" style="filled" color="#e6194b"]
+n6 [ label="WORK.&P_PREFIX._EEXPR"  shape="cylinder" style="filled" color="#e6194b"]
+n7 [ label="WORK.&P_PREFIX._REF"  shape="cylinder" style="filled" color="#e6194b"]
+n8 [ label="WORK.&P_PREFIX._COLLIN"  shape="cylinder" style="filled" color="#e6194b"]
+n9 [ label="WORK.&P_PREFIX._DSVER"  shape="cylinder" style="filled" color="#e6194b"]
+n10 [ label="WORK.&P_PREFIX._EXPRDS"  shape="cylinder" style="filled" color="#e6194b"]
+n11 [ label="WORK.&P_PREFIX._EXPRSQL"  shape="cylinder" style="filled" color="#e6194b"]
+n12 [ label="WORK.&P_PREFIX._SRC"  shape="cylinder" style="filled" color="#e6194b"]
+n13 [ label="WORK.&P_PREFIX._CMEM"  shape="cylinder" style="filled" color="#e6194b"]
+n14 [ shape="record" label="{LIN_BUILDLINEAGE.SAS | Resolves the column level lineage of one SCAPROC recording.}" href="lin__buildlineage_8sas_source.html" ]
+n15 [ shape="record" label="{LIN_EXPRDATASTEP.SAS | Extracts column derivations from the recorded source of DATA steps.}" href="lin__exprdatastep_8sas_source.html" ]
+n16 [ shape="record" label="{LIN_EXPRSQL.SAS | Extracts column derivations from the recorded source of PROC SQL steps.}" href="lin__exprsql_8sas_source.html" ]
+n17 [ shape="record" label="{LIN_PREPSOURCE.SAS | Splits the recorded source of every step into statements.}" href="lin__prepsource_8sas_source.html" ]
+n18 [ shape="record" label="{LIN_READLOG.SAS | Reads ONE SCAPROC (SAS Code Analyzer) recording into tidy lineage tables.}" href="lin__readlog_8sas_source.html" ]
+n19 [ shape="record" label="{LIN_TOKENIZE.SAS | Turns the derivation expressions into column references.}" href="lin__tokenize_8sas_source.html" ]
+n20 [ shape="record" label="{LIN_WRITEDAG.SAS | Draws the lineage of one SCAPROC recording as Graphviz (*.dot) DAGs.}" href="lin__writedag_8sas_source.html" ]
+n21 [ shape="record" label="{LIN_WRITEJSON.SAS | Writes the lineage of one SCAPROC recording as a node / edge JSON graph.}" href="lin__writejson_8sas_source.html" ]
+
+n0 -> {n14 n15 n16 n20 n21}
+n1 -> {n14 n20}
+n2 -> {n14 n20 n21}
+n3 -> {n14 n20 n21}
+n4 -> {n14 n15 n16}
+n5 -> {n14}
+n6 -> {n14}
+n7 -> {n14}
+n8 -> {n20 n21}
+n9 -> {n20 n21}
+n10 -> {n19}
+n11 -> {n19}
+n12 -> {n17 n20}
+n13 -> {n20}
+n14 -> {n8 n9}
+n15 -> {n10}
+n16 -> {n11 n5}
+n17 -> {n4}
+n18 -> {n0 n1 n2 n3 n12 n13}
+n19 -> {n6 n7}
+
+}

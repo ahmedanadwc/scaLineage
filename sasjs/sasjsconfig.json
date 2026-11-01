@@ -1,0 +1,27 @@
+{
+  "$schema": "https://raw.githubusercontent.com/sasjs/utils/main/src/types/sasjsconfig-schema.json",
+  "docConfig": {
+    "displayMacroCore": false,
+    "outDirectory": "D:\\Projects\\SAS\\scaLineage\\docs\\code" ,
+    "enableLineage": true,
+    "doxyContent": {
+    "favIcon": "favicon.ico",
+    "footer": "new_footer.html",
+    "header": "new_header.html",
+    "layout": "DoxygenLayout.xml",
+    "logo": "logo.png",
+    "stylesheet": "new_stylesheet.css",
+    "path": "sasjs/doxy"
+    }
+  },
+  "jobConfig": {"jobFolders": ["code","config"]},
+  "defaultTarget": "sasjsdoc",
+  "targets": [
+    {
+      "name": "sasjsdoc",
+      "serverUrl": "",
+      "serverType": "SASJS",
+      "appLoc": "/Public/app/docs"
+    }
+  ]
+}
