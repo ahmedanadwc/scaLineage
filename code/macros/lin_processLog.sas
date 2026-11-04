@@ -54,7 +54,7 @@ The global macro variable G_LINRC is 0 when the log was processed, otherwise
   p_prefix=lin);
 
   %GLOBAL g_linRC;
-  %LOCAL l_prefix l_name l_nsteps l_nattrs l_status l_file l_dot;
+  %LOCAL l_prefix l_name l_nsteps l_nattrs l_status l_file l_dot l_logsRoot;
 	%LOCAL
 		l_sTime
 		l_eTime
@@ -66,6 +66,11 @@ The global macro variable G_LINRC is 0 when the log was processed, otherwise
   %let g_linRC=0;
   %let l_prefix=&p_prefix;
   %let l_status=OK;
+
+  %let l_logsRoot = %sysfunc(pathname(WORK));
+  %if (%symexist(g_logsRoot)) %then %let l_logsRoot = &g_logsRoot;
+  %lin_startRecord(p_outFile=%str(&l_logsRoot.&g_slash.sca__lin_processlog.txt)
+  , p_replace_yn=Y, p_enableFlagName=g_enableScaProc)
 
   %if ((%SUPERQ(p_inFile) EQ ) OR (%SUPERQ(p_outDir) EQ )) %then 
   %do;
@@ -264,5 +269,7 @@ The global macro variable G_LINRC is 0 when the log was processed, otherwise
 		%let l_eTime=%sysfunc(time());
 		%let l_rTime=%sysfunc(putn(%sysevalf(&l_eTime - &l_sTime),time12.2));
 		%PUT >>> lin_processLog :>>> Total RunTime = &l_rTime;
+
+    %lin_stopRecord(p_enableFlagName=g_enableScaProc)
 		;
 %mend lin_processLog;
