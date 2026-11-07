@@ -139,7 +139,7 @@
   DATA work._lin_a;
     SET work._lin_a;
     BY step role ds;
-    LENGTH ukey $64;
+    LENGTH ukey $64 seq 4;
     RETAIN seq 0;
     IF (FIRST.ds) THEN seq = 0;
     seq + 1;
@@ -321,7 +321,7 @@
          , 'NONE' AS fromKind LENGTH=6
          , '' AS fromDs LENGTH=1000, '' AS fromVar LENGTH=64, '' AS expr LENGTH=500
     FROM work._lin_miss m
-    LEFT JOIN &&p_stepsDsName p ON p.step = m.step
+    LEFT JOIN &p_stepsDsName p ON p.step = m.step
     WHERE NOT EXISTS (SELECT 1 FROM work._lin_file x WHERE x.step = m.step AND x.toDs = m.toDs AND x.toVar = m.toVar);
 
     CREATE TABLE work._lin_c1 AS
@@ -343,14 +343,14 @@
     FROM &p_dsioDsName d WHERE d.role IN ('OUTPUT', 'UPDATE');
 
     CREATE TABLE &p_prefix._collin AS
-    SELECT c.step, s.procname LENGTH=32, c.method, c.fromKind, c.fromDs
+    SELECT c.step, s.procname LENGTH=64, c.method, c.fromKind, c.fromDs
          , CASE WHEN c.fromKind = 'DS'
                 THEN (SELECT COUNT(*) FROM work._lin_writes w WHERE w.ds = c.fromDs AND w.step < c.step) ELSE 0 END AS fromVer
          , c.fromVar, c.toDs
          , (SELECT COUNT(*) FROM work._lin_writes w WHERE w.ds = c.toDs AND w.step <= c.step) AS toVer
          , c.toVar, c.expr
     FROM work._lin_c1 c
-    LEFT JOIN &&p_stepsDsName s ON s.step = c.step
+    LEFT JOIN &p_stepsDsName s ON s.step = c.step
     ORDER BY c.step, c.toDs, c.toVar, c.method, c.fromDs, c.fromVar;
   QUIT;
 
