@@ -23,7 +23,7 @@
   @version 9.4
   @author Ahmed Al-Attar
 **/
-%MACRO lin_startRecord(p_outFile=
+%macro lin_startRecord(p_outFile=
 , p_replace_yn=Y
 , p_enableFlagName=g_enableScaProc) / minoperator;
 
@@ -55,4 +55,4 @@
     RECORD "&p_outFile" ATTR OPENTIMES EXPANDMACROS;
   RUN;
 
-%MEND lin_startRecord;
+%mend lin_startRecord;

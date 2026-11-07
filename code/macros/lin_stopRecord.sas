@@ -13,7 +13,7 @@
   @version 9.4
   @author Ahmed Al-Attar
 **/
-%MACRO lin_stopRecord(p_enableFlagName=g_enableScaProc) / minoperator;
+%macro lin_stopRecord(p_enableFlagName=g_enableScaProc) / minoperator;
 
   %LOCAL l_flag;
 
@@ -28,4 +28,4 @@
     WRITE;
   RUN;
 
-%MEND lin_stopRecord;
+%mend lin_stopRecord;
