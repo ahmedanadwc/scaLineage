@@ -15,8 +15,8 @@ var NAVTREEINDEX0 =
 "lin__exprsql_8sas_source.html":[0,0,0,2],
 "lin__prepsource_8sas.html":[0,0,0,3],
 "lin__prepsource_8sas_source.html":[0,0,0,3],
-"lin__processlog_8sas.html":[0,0,0,4],
-"lin__processlog_8sas_source.html":[0,0,0,4],
+"lin__process_log_8sas.html":[0,0,0,4],
+"lin__process_log_8sas_source.html":[0,0,0,4],
 "lin__readlog_8sas.html":[0,0,0,5],
 "lin__readlog_8sas_source.html":[0,0,0,5],
 "lin__runall_8sas.html":[0,0,0,6],
@@ -34,6 +34,6 @@ var NAVTREEINDEX0 =
 "pages.html":[],
 "setup_8sas.html":[0,1,0],
 "setup_8sas_source.html":[0,1,0],
-"usage__lin__run_all_8sas.html":[0,0,1,0],
-"usage__lin__run_all_8sas_source.html":[0,0,1,0]
+"usage__lin__runall_8sas.html":[0,0,1,0],
+"usage__lin__runall_8sas_source.html":[0,0,1,0]
 };

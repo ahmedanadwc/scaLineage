@@ -179,7 +179,7 @@ Record the programs correctly</h1>
 </div><!-- fragment --><p>A recording without <span class="tt">ATTR</span> records still gets a data set level DAG, but a warning is written and no columns can be traced.</p>
 <h1 class="doxsection"><a class="anchor" id="autotoc_md3"></a>
 Run it</h1>
-<p><b>From SAS</b> (edit the paths first): <span class="tt"><a class="el" href="usage__lin__run_all_8sas.html" title="Example: extract data / column lineage and draw the DAGs for every SCAPROC *.txt in a folder.">programs/usage_lin_runAll.sas</a></span></p>
+<p><b>From SAS</b> (edit the paths first): <span class="tt"><a class="el" href="usage__lin__runall_8sas.html" title="Example: extract data / column lineage and draw the DAGs for every SCAPROC *.txt in a folder.">programs/usage_lin_runAll.sas</a></span></p>
 <div class="fragment"><div class="line">%lin_runAll(p_logDir=~/scaLineage/logs, p_outDir=~/scaLineage/output, p_attrs_yn=Y)</div>
 <div class="line">%lin_processLog(p_inFile=~/scaLineage/logs/x.txt, p_outDir=~/scaLineage/output)   <span class="comment">/* one file */</span></div>
 </div><!-- fragment --><p><b>From Windows, against SAS ODA via SASPy.</b> It needs a Python with <span class="tt">saspy</span> installed and <span class="tt">connect_saspy.py</span> (folder in <span class="tt">SASPY_HELPERS</span>, default <span class="tt">D:\Projects\Python\saspy_helpers</span>). The conda environment <span class="tt">sas_python2</span> has both:</p>
