@@ -36,12 +36,23 @@
   @version 9.4
   @author Ahmed Al-Attar
 **/
-%macro lin_runAll(p_logDir=, p_outDir=, p_ext=txt, p_attrs_yn=N, p_includeSteps_yn=Y
-, p_columnDag_yn=Y, p_rankDir=LR, p_json_yn=N);
+
+%macro lin_runAll(
+p_logDir=
+, p_outDir=
+, p_ext=txt
+, p_attrs_yn=N
+, p_includeSteps_yn=Y
+, p_columnDag_yn=Y
+, p_rankDir=LR
+, p_json_yn=N);
 
   %GLOBAL g_linRC;
-  %LOCAL l_n;
+  %LOCAL l_n l_slash;
   %let g_linRC = 0;
+
+  %if (%symexist(g_slash)) %then %let l_slash=&g_slash;
+  %else %let l_slash=/;
 
   %if ((%SUPERQ(p_logDir) EQ ) OR (%SUPERQ(p_outDir) EQ )) %then
   %do;
@@ -63,9 +74,12 @@
   %end;
 
   /* start a fresh summary */
-  PROC DATASETS LIB=WORK NOLIST NOWARN;
-    DELETE lin_summary;
-  RUN; QUIT;
+  %if (%SYSFUNC(exist(WORK.lin_summary))) %then
+  %do;
+    PROC DATASETS LIB=WORK NOLIST NOWARN;
+      DELETE lin_summary;
+    RUN; QUIT;
+  %end;
 
   /* list the files, and make one output sub-folder per file */
   DATA work._lin_list (KEEP=path outSub);
@@ -80,9 +94,9 @@
         DO;
           base = SUBSTR(fn, 1, FINDC(fn, '.', 'b') - 1);
           safe = PRXCHANGE('s/[^A-Za-z0-9_.-]/_/', -1, STRIP(base));
-          path = CATS("&p_logDir", '/', fn);
+          path = CATS("&p_logDir", "&l_slash", fn);
           dcr = DCREATE(safe, "&p_outDir");
-          outSub = CATS("&p_outDir", '/', safe);
+          outSub = CATS("&p_outDir", "&l_slash", safe);
           OUTPUT;
         END;
       END;
@@ -117,7 +131,7 @@
 
   %if (%sysfunc(exist(work.lin_summary))) %then
   %do;
-    PROC EXPORT DATA=work.lin_summary OUTFILE="&p_outDir/lineage_summary.csv" DBMS=CSV REPLACE; RUN;
+    PROC EXPORT DATA=work.lin_summary OUTFILE="&p_outDir&l_slash.lineage_summary.csv" DBMS=CSV REPLACE; RUN;
   %end;
 
   PROC DATASETS LIB=WORK NOLIST NOWARN;
