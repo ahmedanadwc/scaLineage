@@ -16,10 +16,10 @@
       |<p_name>_source.csv|one row per source|
 
 
-A one-row summary is appended to WORK.LIN_SUMMARY (created on first use).
-The global macro variable G_LINRC is 0 when the log was processed, otherwise
-1 = p_inFile / p_outDir missing, 2 = input does not exist, 3 = output folder does not exist,
-4 = the file holds no SCAPROC steps.
+  A one-row summary is appended to WORK.LIN_SUMMARY (created on first use).
+  The global macro variable G_LINRC is 0 when the log was processed, otherwise<br>
+  1 = p_inFile / p_outDir missing, <br>2 = input does not exist, <br>3 = output folder does not exist,
+  <br>4 = the file holds no SCAPROC steps.
 
   Example usage:
 
@@ -49,18 +49,49 @@ The global macro variable G_LINRC is 0 when the log was processed, otherwise
   @author Ahmed Al-Attar
 **/
 
-%macro lin_processLog(p_inFile=, p_outDir=, p_name=, p_attrs_yn=N ,
-  p_includeSteps_yn=Y , p_columnDag_yn=Y , p_rankDir=LR , p_json_yn=N ,
-  p_prefix=lin);
+%macro lin_processLog(
+  p_inFile=
+, p_outDir=
+, p_name=
+, p_attrs_yn=N 
+, p_includeSteps_yn=Y 
+, p_columnDag_yn=Y 
+, p_rankDir=LR 
+, p_json_yn=N 
+, p_prefix=lin);
 
   %GLOBAL g_linRC;
-  %LOCAL l_prefix l_name l_nsteps l_nattrs l_status l_file l_dot l_logsRoot;
+  %LOCAL 
+  l_prefix 
+  l_name 
+  l_nsteps 
+  l_nattrs 
+  l_nexprdatastep
+  l_status 
+  l_file 
+  l_dot 
+  l_logsRoot
+  l_slash
+  ;
+
 	%LOCAL
-		l_sTime
-		l_eTime
-		l_rTime
-		;
-    
+  l_sTime
+  l_eTime
+  l_rTime
+  ;
+  
+  %LOCAL 
+  l_nds
+  l_nfile 
+  l_ncol 
+  l_nexpr 
+  l_nname 
+  l_nother 
+  l_nunres 
+  l_nnosrc 
+  l_nauto 
+  l_pct;
+  
 	* Record Starting Time;
 	%let l_sTime = %sysfunc(time());
   %let g_linRC=0;
@@ -69,8 +100,14 @@ The global macro variable G_LINRC is 0 when the log was processed, otherwise
 
   %let l_logsRoot = %sysfunc(pathname(WORK));
   %if (%symexist(g_logsRoot)) %then %let l_logsRoot = &g_logsRoot;
-  %lin_startRecord(p_outFile=%str(&l_logsRoot.&g_slash.sca__lin_processlog.txt)
-  , p_replace_yn=Y, p_enableFlagName=g_enableScaProc)
+  
+  %if (%symexist(g_slash)) %then %let l_slash=&g_slash;
+  %else %let l_slash=/;
+
+  /* start recording */
+  %lin_startRecord(p_outFile=%str(&l_logsRoot.&l_slash.sca__lin_processlog.txt)
+  , p_replace_yn=Y
+  , p_enableFlagName=g_enableScaProc)
 
   %if ((%SUPERQ(p_inFile) EQ ) OR (%SUPERQ(p_outDir) EQ )) %then 
   %do;
@@ -192,76 +229,75 @@ The global macro variable G_LINRC is 0 when the log was processed, otherwise
     DBMS=CSV REPLACE;
   RUN;
 
-  %summary: /* ---- one summary row per processed log ---- */ %LOCAL l_nds
-    l_nfile l_ncol l_nexpr l_nname l_nother l_nunres l_nnosrc l_nauto l_pct;
-  %let l_nds=0;
-  %let l_nfile=0;
-  %let l_ncol=0;
-  %let l_nexpr=0;
-  %let l_nname=0;
-  %let l_nother=0;
-  %let l_nunres=0;
-  %let l_nnosrc=0;
-  %let l_nauto=0;
-  %let l_pct=.;
+  %summary: /* ---- one summary row per processed log ---- */ 
+    %let l_nds=0;
+    %let l_nfile=0;
+    %let l_ncol=0;
+    %let l_nexpr=0;
+    %let l_nname=0;
+    %let l_nother=0;
+    %let l_nunres=0;
+    %let l_nnosrc=0;
+    %let l_nauto=0;
+    %let l_pct=.;
 
-  %if (&l_status=OK) %then 
-  %do;
-    PROC SQL NOPRINT;
-      SELECT COUNT(DISTINCT ds) INTO :l_nds TRIMMED FROM &p_prefix._dsio;
-      SELECT COUNT(DISTINCT path) INTO :l_nfile TRIMMED FROM &p_prefix._fileio;
-      SELECT COUNT(*) INTO :l_ncol TRIMMED FROM &p_prefix._collin;
-      SELECT COUNT(*) INTO :l_nexpr TRIMMED FROM &p_prefix._collin WHERE method=
-        'EXPR';
-      SELECT COUNT(*) INTO :l_nname TRIMMED FROM &p_prefix._collin WHERE method=
-        'NAME';
-      SELECT COUNT(*) INTO :l_nother TRIMMED FROM &p_prefix._collin WHERE method
-        IN ('FILE', 'INPUT', 'RENAME', 'CONST');
-      SELECT COUNT(*) INTO :l_nunres TRIMMED FROM &p_prefix._collin WHERE method
-        ='UNRESOLVED';
-      SELECT COUNT(*) INTO :l_nnosrc TRIMMED FROM &p_prefix._collin WHERE method
-        ='NOSOURCE';
-      SELECT COUNT(*) INTO :l_nauto TRIMMED FROM &p_prefix._collin WHERE method=
-        'AUTO';
-    QUIT;
+    %if (&l_status=OK) %then 
+    %do;
+      PROC SQL NOPRINT;
+        SELECT COUNT(DISTINCT ds) INTO :l_nds TRIMMED FROM &p_prefix._dsio;
+        SELECT COUNT(DISTINCT path) INTO :l_nfile TRIMMED FROM &p_prefix._fileio;
+        SELECT COUNT(*) INTO :l_ncol TRIMMED FROM &p_prefix._collin;
+        SELECT COUNT(*) INTO :l_nexpr TRIMMED FROM &p_prefix._collin WHERE method=
+          'EXPR';
+        SELECT COUNT(*) INTO :l_nname TRIMMED FROM &p_prefix._collin WHERE method=
+          'NAME';
+        SELECT COUNT(*) INTO :l_nother TRIMMED FROM &p_prefix._collin WHERE method
+          IN ('FILE', 'INPUT', 'RENAME', 'CONST');
+        SELECT COUNT(*) INTO :l_nunres TRIMMED FROM &p_prefix._collin WHERE method
+          ='UNRESOLVED';
+        SELECT COUNT(*) INTO :l_nnosrc TRIMMED FROM &p_prefix._collin WHERE method
+          ='NOSOURCE';
+        SELECT COUNT(*) INTO :l_nauto TRIMMED FROM &p_prefix._collin WHERE method=
+          'AUTO';
+      QUIT;
 
-    %if (&l_nnosrc > 0) %then %put WARNING: lin_processLog: &l_nnosrc column(s)
-      come from steps with no recorded source (NOSOURCE). SCAPROC does not
-      record code that is included from a file or generated by CALL EXECUTE:
-      submit the code directly when recording.;
+      %if (&l_nnosrc > 0) %then %put WARNING: lin_processLog: &l_nnosrc column(s)
+        come from steps with no recorded source (NOSOURCE). SCAPROC does not
+        record code that is included from a file or generated by CALL EXECUTE:
+        submit the code directly when recording.;
 
-    %if (%eval(&l_ncol - &l_nnosrc) > 0) %then 
-      %let l_pct=%sysevalf(100 * &l_nunres / (&l_ncol - &l_nnosrc));
-  %end;
+      %if (%eval(&l_ncol - &l_nnosrc) > 0) %then 
+        %let l_pct=%sysevalf(100 * &l_nunres / (&l_ncol - &l_nnosrc));
+    %end;
 
-  DATA work._lin_sum;
-    LENGTH logFile $1000 name $200 status $8;
-    logFile=SCAN(TRANSLATE(SYMGET('p_inFile'), '/', ''), -1, '/');
-    name="&l_name";
-    status="&l_status";
-    steps=&l_nsteps;
-    datasets=&l_nds;
-    files=&l_nfile;
-    colEdges=&l_ncol;
-    exprEdges=&l_nexpr;
-    nameEdges=&l_nname;
-    otherEdges=&l_nother;
-    unresolved=&l_nunres;
-    noSource=&l_nnosrc;
-    autoEdges=&l_nauto;
-    unresPct=&l_pct;
-      /* unresolved as % of the column edges of steps that have a recorded source */
-  RUN;
-
-  PROC APPEND BASE=work.lin_summary DATA=work._lin_sum; RUN;
-
-  PROC DATASETS LIB=WORK NOLIST NOWARN;
-    DELETE _lin_dslin _lin_sum
-           &p_prefix._steps &p_prefix._dsio &p_prefix._fileio &p_prefix._attrs &p_prefix._src &p_prefix._stmts
-           &p_prefix._exprDs &p_prefix._exprSql &p_prefix._alias &p_prefix._eexpr &p_prefix._ref
-           &p_prefix._collin &p_prefix._dsver &p_prefix._cmem;
+    DATA work._lin_sum;
+      LENGTH logFile $1000 name $200 status $8;
+      logFile=SCAN(TRANSLATE(SYMGET('p_inFile'), '/', ''), -1, '/');
+      name="&l_name";
+      status="&l_status";
+      steps=&l_nsteps;
+      datasets=&l_nds;
+      files=&l_nfile;
+      colEdges=&l_ncol;
+      exprEdges=&l_nexpr;
+      nameEdges=&l_nname;
+      otherEdges=&l_nother;
+      unresolved=&l_nunres;
+      noSource=&l_nnosrc;
+      autoEdges=&l_nauto;
+      unresPct=&l_pct;
+        /* unresolved as % of the column edges of steps that have a recorded source */
     RUN;
-  QUIT;
+
+    PROC APPEND BASE=work.lin_summary DATA=work._lin_sum; RUN;
+
+    PROC DATASETS LIB=WORK NOLIST NOWARN;
+      DELETE _lin_dslin _lin_sum
+        &p_prefix._steps &p_prefix._dsio &p_prefix._fileio &p_prefix._attrs &p_prefix._src &p_prefix._stmts
+        &p_prefix._exprDs &p_prefix._exprSql &p_prefix._alias &p_prefix._eexpr &p_prefix._ref
+        &p_prefix._collin &p_prefix._dsver &p_prefix._cmem;
+      RUN;
+    QUIT;
 
 	%goto finished;
 
@@ -270,6 +306,6 @@ The global macro variable G_LINRC is 0 when the log was processed, otherwise
 		%let l_rTime=%sysfunc(putn(%sysevalf(&l_eTime - &l_sTime),time12.2));
 		%PUT >>> lin_processLog :>>> Total RunTime = &l_rTime;
 
-    %lin_stopRecord(p_enableFlagName=g_enableScaProc)
-		;
+    /* stop and write out recording */
+    %lin_stopRecord(p_enableFlagName=g_enableScaProc);
 %mend lin_processLog;
