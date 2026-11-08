@@ -289,7 +289,7 @@ DATA _NULL_;
   FILE "&g_testRoot/rec/g.txt";
   PUT 'STALE CONTENT FROM AN EARLIER RUN';
 RUN;
-%lin_startRecord(p_outFile=&g_testRoot/rec/g.txt)
+%lin_startRecord(p_outFile=&g_testRoot/rec/g.txt, p_enableFlagName=)
 DATA work.g0;
   x = 1;
 RUN;
@@ -297,7 +297,7 @@ DATA work.g1;
   SET work.g0;
   y = x + 1;
 RUN;
-%lin_stopRecord
+%lin_stopRecord(p_enableFlagName=)
 %t_lineage(p_file=&g_testRoot/rec/g.txt, p_prefix=tg)
 %t_rows(p_name=G1 stale recording content is replaced, p_ds=tg_collin, p_where=%str(toDs='WORK.G1' and toVar='y' and fromVar='x' and method='EXPR'))
 %lin_startRecord(p_outFile=&g_testRoot/rec/g_off.txt, p_enableFlagName=g_noSuchFlag)
